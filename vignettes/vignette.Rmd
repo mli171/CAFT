@@ -1,0 +1,113 @@
+---
+title: "A brief guide to CAFT"
+author: "Glen A Satten, Mo Li, Ni Zhao"
+date: "`r format(Sys.time(), '%d %b %Y')`"
+output: 
+  rmarkdown::html_vignette:
+    number_sections: false
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{A brief guide to changepointGA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Introduction
+
+The **CAFT** package develop a rank-based compositional analysis using the accelerate failure time model for Micorbiome data analysis.
+
+```{r}
+library(CAFT)
+```
+
+
+## Colon data.
+
+### Extrac data set 
+
+The data set is included in the R package "curatedMetagenomicData" and the package installation is required through "Bioconductor".
+
+```{r}
+data(Colon)
+```
+
+### Fitering OTU data table
+
+```{r}
+library(phyloseq)
+
+count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
+sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
+tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
+
+p = sample.tab$study_name %in% "WirbelJ_2018"
+sample.tab = sample.tab[p,]
+count.tab = count.tab[p, ]
+
+dim(sample.tab)
+dim(count.tab)
+
+pNA = which(is.na(sample.tab$age))
+if(length(pNA) > 0){
+  count.tab = count.tab[-pNA, ]
+  sample.tab = sample.tab[-pNA,]
+}
+
+# No missing values from gender
+
+### otu presence filtering
+p_otu = which(rowSums(t(count.tab) > 0) > 1)
+count.tab = count.tab[,p_otu]
+tax.tab = tax.tab[p_otu,]
+
+```
+
+
+### The of-interested and adjusting covariates
+
+```{r}
+Disease = as.numeric(factor(sample.tab$disease, 
+                            levels = c("healthy", "CRC"))) - 1
+Age = as.numeric(sample.tab$age)
+Gender = as.numeric(factor(sample.tab$gender)) - 1
+```
+
+### Censoring proportion
+
+```{r}
+##### 1. OTU table dimension (86 samples and 369 identified taxa)
+dim(count.tab)
+
+##### 2. mean and median censoring proportion
+cens.prop = colMeans(count.tab == 0, na.rm = T)
+mean(cens.prop)
+median(cens.prop)
+
+```
+
+### Three AFT model based individual taxa hypothesis testing method
+
+```{r}
+res.CAFT = caft(otu.table=count.tab, Y=Disease, 
+               C=data.frame(Age=Age, Gender=Gender),
+               filter.thresh=0.06, CAFT.method="CAFT",
+               adjust.method="BH")
+```
+
+## References
+
+Pasolli, E., Schiffer, L., Manghi, P., Renson, A., Obenchain, V., Truong, D., Beghini, F., Malik, F., Ramos, M., Dowd, J., Huttenhower, C., Morgan, M., Segata, N., & Waldron, L. (2017). Accessible, curated metagenomic data through ExperimentHub. *Nature Methods*, 14(11), 1023–1024.
+
+
+```{r}
+sessionInfo()
+```

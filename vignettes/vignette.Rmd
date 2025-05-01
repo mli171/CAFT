@@ -87,11 +87,9 @@ Gender = as.numeric(factor(sample.tab$gender)) - 1
 ##### 1. OTU table dimension (86 samples and 369 identified taxa)
 dim(count.tab)
 
-##### 2. mean and median censoring proportion
+##### 2. mean censoring proportion
 cens.prop = colMeans(count.tab == 0, na.rm = T)
 mean(cens.prop)
-median(cens.prop)
-
 ```
 
 ### Three AFT model based individual taxa hypothesis testing method
@@ -101,6 +99,13 @@ res.CAFT = caft(otu.table=count.tab, Y=Disease,
                C=data.frame(Age=Age, Gender=Gender),
                filter.thresh=0.06, CAFT.method="CAFT",
                adjust.method="BH")
+```
+
+Note that we can also calculate the censoring proportion (proportion of zero 
+cells) for the filtered data.
+
+```{r}
+mean(cens.prop[res.AFT$skip.otu == 0])
 ```
 
 ## References

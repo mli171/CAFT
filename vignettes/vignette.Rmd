@@ -105,7 +105,7 @@ Note that we can also calculate the censoring proportion (proportion of zero
 cells) for the filtered data.
 
 ```{r}
-mean(cens.prop[res.AFT$skip.otu == 0])
+mean(cens.prop[res.CAFT$skip.otu == 0])
 ```
 
 ## References

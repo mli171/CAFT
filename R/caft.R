@@ -16,9 +16,14 @@
 #'    covariates.
 #' @param C other covariates that need to be adjusted. Requirements are the
 #'    same as \code{Y} above.
-#' @param filter.thresh a real value between 0 and 1 for OTU table sample presence filtering. Any OTUs present in fewer than \code{filter.thresh}*100\% samples are filtered out. We set the default to be 0.05.
+#' @param filter.thresh a real value between 0 and 1 for OTU table sample presence
+#'    filtering. Any OTUs present in fewer than \code{filter.thresh} proportion
+#'    of samples are filtered out. We set the default to be 0.05.
 #' @param fdr.nominal the nominal FDR. The default is 0.2.
-#' @param CAFT.method a character string. If "CAFT", the function returns results from the original AFT-based taxa testing procedure. We set the default to be "CAFT". The optional methods of "CAFT.MIX" and "CAFT.Efron" will be added soon.
+#' @param CAFT.method a character string. If "CAFT", the function returns
+#' results from the original AFT-based taxa testing procedure. We set the
+#' default to be "CAFT". The optional methods of "CAFT.MIX" and "CAFT.Efron"
+#' will be added soon.
 #' @param adjust.method a character string. Use multiple comparison/testing
 #'  adjustment methods to control the family-wise error rate/false discover
 #'  rate. Default to "BH". See \code{\link{p.adjust}} for the details.

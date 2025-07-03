@@ -35,8 +35,13 @@
 #' \describe{
 #' \item{method.pick}{Method selected per taxon based on AIC from the QQ plot fits.
 #'    Either \code{"CAFT"} or \code{"CAFT.Efron"}.}
-#' \item{effect.size}{Effect size at each OTU, defined as the difference from
-#'    the median of all betas.}
+#' \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
+#' each OTU count to the log-linear model. The number of columns should match
+#' the number of covairates from \code{Y} and \code{C}.}
+#' \item{b1.median.pen}{The selected median of all betas, which was used in the
+#' restricted score test of the significance of differential abundant OTU. It can
+#' also be used to calculated the effect size of each OTU, defined as the difference
+#' from the median of all betas.}
 #' \item{test.rank}{test statistics from the proposed score test}
 #' \item{test.rank.correct}{the corrected test statistics from the proposed
 #'          score test via modified Efron correction method}
@@ -132,9 +137,13 @@ caft = function(otu.table, Y, C, filter.thresh=0.05, fdr.nominal=0.20,
   #--------------------------
   # create survival data
   #--------------------------
-
-  t.star.all = ifelse(otu.table > 0, -log10(ra.all), -log10(lim.ra)) ### ???
-  # t.star.all = ifelse(otu.table > 0, -log(ra.all), -log(lim.ra)) ### ???
+  log_neg <- -log10(lim.ra)
+  log_pos <- -log10(ra.all)
+  t.star.all <- matrix(log_neg,
+                       nrow = nrow(otu.table),
+                       ncol = ncol(otu.table))
+  idx <- (otu.table > 0)
+  t.star.all[idx] <- log_pos[idx]
   t.star.all = as.data.frame(t.star.all)
   colnames(t.star.all) = paste("tstar", 1:n.taxa)
 
@@ -229,7 +238,8 @@ caft = function(otu.table, Y, C, filter.thresh=0.05, fdr.nominal=0.20,
       #--------------------------
 
       method.pick = "CAFT"
-      effect.size = est.rank.gs.pen$b1.est - b1.median.pen
+      est.rank.gs.pen = est.rank.gs.pen
+      b1.median.pen = b1.median.pen
       test.rank = test.rank.pen
       test.rank.correct = NULL
       skip.otu = skip.rare
@@ -265,7 +275,8 @@ caft = function(otu.table, Y, C, filter.thresh=0.05, fdr.nominal=0.20,
   )
 
   return(list(method.pick=method.pick,
-              effect.size=effect.size,
+              est.rank.gs.pen=est.rank.gs.pen,
+              b1.median.pen=b1.median.pen,
               test.rank=test.rank,
               test.rank.correct=test.rank.correct,
               skip.otu=skip.otu,

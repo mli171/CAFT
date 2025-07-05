@@ -14,7 +14,7 @@
 #' and creates a boxplot of relative abundance grouped by \code{groups}. If \code{groups} is not a factor,
 #' the function will return an error. The mean of each group is marked with a red dot.
 #'
-#' @importFrom ggplot2 ggplot aes geom_boxplot stat_summary labs theme_minimal theme element_text element_rect
+#' @importFrom ggplot2 ggplot aes geom_boxplot stat_summary labs theme_minimal theme element_text element_rect position_dodge
 #' @export
 #'
 #' @examples

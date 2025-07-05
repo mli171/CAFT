@@ -50,8 +50,13 @@ Return a list consisting of
 \describe{
 \item{method.pick}{Method selected per taxon based on AIC from the QQ plot fits.
 Either \code{"CAFT"} or \code{"CAFT.Efron"}.}
-\item{effect.size}{Effect size at each OTU, defined as the difference from
-the median of all betas.}
+\item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
+each OTU count to the log-linear model. The number of columns should match
+the number of covairates from \code{Y} and \code{C}.}
+\item{b1.median.pen}{The selected median of all betas, which was used in the
+restricted score test of the significance of differential abundant OTU. It can
+also be used to calculated the effect size of each OTU, defined as the difference
+from the median of all betas.}
 \item{test.rank}{test statistics from the proposed score test}
 \item{test.rank.correct}{the corrected test statistics from the proposed
 score test via modified Efron correction method}

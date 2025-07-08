@@ -6,7 +6,10 @@
 #' @param plot.otu Character vector of OTU names to plot. Must match column names of \code{count.data}.
 #' @param count.data A numeric matrix or data frame of OTU counts (samples in rows, OTUs in columns).
 #' @param groups A factor vector indicating group membership for each sample (must be same length as number of rows in \code{count.data}).
-#'
+#' @param type A character string indicating what values to plot.
+#'   Use \code{"original"} to plot the empirical relative abundances.
+#'   Use \code{"transformed"} to plot the negative log10-transformed relative abundances.
+#'   When \code{type = "transformed"}, a pseudo-count of one is added to all OTU counts to avoid taking \code{log10(0)}.
 #' @return A \code{ggplot} object displaying a boxplot of the relative abundance of the selected OTU across groups.
 #'
 #' @details
@@ -34,7 +37,7 @@
 #' group2 <- rbinom(n, 1, 0.5)
 #' group <- factor(paste0("Y", group1, "_C", group2))
 #' otuboxplot("OTU5", count.data, group)
-otuboxplot = function(plot.otu, count.data, groups){
+otuboxplot = function(plot.otu, count.data, groups, type="original"){
 
   if (!inherits(groups, "factor")) {
     stop("\n The sample groups indicator needs to be factors!")
@@ -50,7 +53,17 @@ otuboxplot = function(plot.otu, count.data, groups){
     stop("\n The requested OTU does not exit in OTU table OR the OTU names cannot be matched!")
   }
 
-  rel_mat = count.data[, plot.otu, drop = FALSE]/rowSums(count.data)
+  if(type=="original"){
+    rel_mat = count.data[, plot.otu, drop = FALSE]/rowSums(count.data)
+    plotYlabl = "Relative Abundance"
+  }else{
+    ## adding a pseudo-count of 1 for -log10 transformation
+    count.data = count.data + 1
+    rel_mat = count.data[, plot.otu, drop = FALSE]/rowSums(count.data)
+    rel_mat = -log10(rel_mat)
+    plotYlabl = "-log10(Relative Abundance)"
+  }
+
   plotdata = data.frame(
     val   = as.vector(rel_mat),
     group = rep(groups, each = ncol(rel_mat))
@@ -63,7 +76,7 @@ otuboxplot = function(plot.otu, count.data, groups){
     labs(
       title = plot.otu,
       x = NULL,
-      y = "Relative Abundance",
+      y = plotYlabl,
       fill = "Group"
     ) +
     theme_minimal() +

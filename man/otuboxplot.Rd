@@ -2,28 +2,36 @@
 % Please edit documentation in R/otuboxplot.R
 \name{otuboxplot}
 \alias{otuboxplot}
-\title{Boxplot of OTU Relative Abundance by Group}
+\title{Generates a ggplot2-based boxplot showing the relative abundance of a specified OTU (Operational Taxonomic Unit)
+across different sample groups.}
 \usage{
-otuboxplot(plot.otu, count.data, groups)
+otuboxplot(plot.otu, count.data, groups, plot.title = NULL, type = "original")
 }
 \arguments{
-\item{plot.otu}{Character vector of OTU names to plot. Must match column names of \code{count.data}.}
+\item{plot.otu}{A character string giving the OTU name to plot. Must match one of the column names in \code{count.data}.}
 
 \item{count.data}{A numeric matrix or data frame of OTU counts (samples in rows, OTUs in columns).}
 
-\item{groups}{A factor vector indicating group membership for each sample (must be same length as number of rows in \code{count.data}).}
+\item{groups}{A factor vector indicating group membership for each sample. Must be the same length as the number of rows in \code{count.data}.}
+
+\item{plot.title}{An optional title for the plot. If \code{NULL}, the OTU name in \code{plot.otu} will be used.}
+
+\item{type}{A character string indicating which values to plot.
+Use \code{"original"} to plot empirical relative abundances.
+Use \code{"transformed"} to plot negative log10-transformed relative abundances.
+A pseudo-count of 1 is added before log transformation to avoid taking \code{log10(0)}.}
 }
 \value{
-A \code{ggplot} object displaying a boxplot of the relative abundance of the selected OTU across groups.
+A \code{ggplot} object showing the OTU's relative abundance across sample groups.
 }
 \description{
 Generates a ggplot2-based boxplot showing the relative abundance of a specified OTU (Operational Taxonomic Unit)
 across different sample groups.
 }
 \details{
-The function converts count data to relative abundance, selects the OTU specified in \code{plot.otu},
-and creates a boxplot of relative abundance grouped by \code{groups}. If \code{groups} is not a factor,
-the function will return an error. The mean of each group is marked with a red dot.
+The function converts raw counts to relative abundances, selects the OTU specified in \code{plot.otu}, and creates a grouped boxplot.
+If \code{groups} is not a factor, the function will return an error.
+Group means are shown as red dots.
 }
 \examples{
 # Example 1: Basic usage
@@ -33,7 +41,7 @@ colnames(count.data) <- paste0("OTU", 1:10)
 groups <- factor(rep(c("Control", "Treatment"), each = 15))
 otuboxplot("OTU3", count.data, groups)
 
-# Example 2: Create two binary indicators and recombine into a factor group
+# Example 2: Combining two binary indicators into one group variable
 set.seed(456)
 n <- 40
 count.data <- matrix(rpois(n * 8, lambda = 12), nrow = n, ncol = 8)
@@ -41,5 +49,5 @@ colnames(count.data) <- paste0("OTU", 1:8)
 group1 <- rbinom(n, 1, 0.5)
 group2 <- rbinom(n, 1, 0.5)
 group <- factor(paste0("Y", group1, "_C", group2))
-otuboxplot("OTU5", count.data, group)
+otuboxplot("OTU5", count.data, group, type = "transformed")
 }

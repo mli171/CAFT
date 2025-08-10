@@ -68,14 +68,16 @@ otuboxplot = function(plot.otu, count.data, groups, plot.title=NULL, type="origi
     plotYlabl = "-log10(Relative Abundance)"
   }
 
+  # utils::globalVariables(c("group", "val"))
+
   plotdata = data.frame(
     val   = as.vector(rel_mat),
     group = rep(groups, each = ncol(rel_mat))
   )
 
-  pcommon = ggplot(data = plotdata, aes(x = plotdata$group, y = plotdata$val, fill = plotdata$group)) +
+  pcommon = ggplot(data = plotdata, aes(x = group, y = val, fill = group)) +
     geom_boxplot(position = position_dodge(width = 1)) +
-    stat_summary(aes(group = plotdata$group), fun = mean, geom = "point", size = 3,
+    stat_summary(aes(group = group), fun = mean, geom = "point", size = 3,
                  color = "red", fill = "red", position = position_dodge(width = 1)) +
     labs(
       title = plot.title,

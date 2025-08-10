@@ -339,7 +339,7 @@ test.rank.aft = function(est.rank.res, score='rank') {
 
 #' @keywords internal
 #' @noRd
-simulate.aft = function(n.obs, F, F.params, G, G.params, beta, x, y.int=0, c.int=0) {
+simulate_aft = function(n.obs, F, F.params, G, G.params, beta, x, y.int=0, c.int=0) {
     if (length(F.params)==1) {eps=F(n.obs,F.params[1])}
 	else {eps=F(n.obs,F.params[1], F.params[2])}
 	eps=eps-mean(eps)

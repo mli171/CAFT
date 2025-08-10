@@ -19,7 +19,7 @@
 #' If \code{groups} is not a factor, the function will return an error.
 #' Group means are shown as red dots.
 #'
-#' @importFrom ggplot2 ggplot aes geom_boxplot stat_summary labs theme_minimal theme element_text element_rect position_dodge
+#' @importFrom ggplot2 ggplot ggtext aes geom_boxplot stat_summary labs theme_minimal theme element_text element_rect position_dodge
 #' @export
 #'
 #' @examples
@@ -73,9 +73,9 @@ otuboxplot = function(plot.otu, count.data, groups, plot.title=NULL, type="origi
     group = rep(groups, each = ncol(rel_mat))
   )
 
-  pcommon = ggplot(data = plotdata, aes(x = group, y = val, fill = group)) +
+  pcommon = ggplot(data = plotdata, aes(x = plotdata$group, y = plotdata$val, fill = plotdata$group)) +
     geom_boxplot(position = position_dodge(width = 1)) +
-    stat_summary(aes(group = group), fun = mean, geom = "point", size = 3,
+    stat_summary(aes(group = plotdata$group), fun = mean, geom = "point", size = 3,
                  color = "red", fill = "red", position = position_dodge(width = 1)) +
     labs(
       title = plot.title,
@@ -90,7 +90,7 @@ otuboxplot = function(plot.otu, count.data, groups, plot.title=NULL, type="origi
       axis.title.y = element_text(size = 18),
       legend.position = "none",
       panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
-      plot.title = element_text(size = 20, face = "bold", hjust = 0.5)
+      plot.title = ggtext::element_markdown(size = 20, face = "bold", hjust = 0.5)
     )
 
   return(pcommon)

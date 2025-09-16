@@ -73,15 +73,7 @@ tax.tab = tax.tab[p_otu,]
 Disease = as.numeric(factor(sample.tab$disease, levels = c("healthy", "CRC"))) - 1
 Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
-```
 
-The caft() function provide three method as described in the paper, associated with 
-setting "CAFT.method" to "CAFT", "CAFT.Efron", or "CAFT.MIX". In general, "CAFT" 
-option tends to identify a greater number of significantly differentially abundant 
-taxa, if more conservative results are desired, comparing to the method of 
-"CAFT.Efron". 
-
-```{r}
 # CAFT
 res.CAFT = caft(otu.table=count.tab, Y=Disease,
                 C=data.frame(Age=Age, Gender=Gender),

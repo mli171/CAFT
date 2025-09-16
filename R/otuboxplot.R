@@ -19,7 +19,8 @@
 #' If \code{groups} is not a factor, the function will return an error.
 #' Group means are shown as red dots.
 #'
-#' @importFrom ggplot2 ggplot ggtext aes geom_boxplot stat_summary labs theme_minimal theme element_text element_rect position_dodge
+#' @importFrom ggplot2 ggplot aes geom_boxplot stat_summary labs theme_minimal theme element_text element_rect position_dodge
+#' @importFrom ggtext element_markdown
 #' @export
 #'
 #' @examples

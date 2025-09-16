@@ -20,21 +20,12 @@
 #'    filtering. Any OTUs present in fewer than \code{filter.thresh} proportion
 #'    of samples are filtered out. We set the default to be 0.05.
 #' @param fdr.nominal the nominal FDR. The default is 0.2.
-#' @param CAFT.method a character string. If "CAFT", the function returns
-#' results from the original AFT-based taxa testing procedure. We set the
-#' default to be "CAFT". The optional methods of "CAFT.MIX" and "CAFT.Efron"
-#' will be added soon.
 #' @param adjust.method a character string. Use multiple comparison/testing
 #'  adjustment methods to control the family-wise error rate/false discover
 #'  rate. Default to "BH". See \code{\link{p.adjust}} for the details.
-#' @param efron.plot a logical value, should the QQ plot fits comparison between the
-#'    methods of "CAFT" and "CAFT.Efron" be saved as part of the results object.
-#'    Only available when \code{CAFT.method=CAFT.MIX}. (To be added soon)
 #'
 #' @return Return a list consisting of
 #' \describe{
-#' \item{method.pick}{Method selected per taxon based on AIC from the QQ plot fits.
-#'    Either \code{"CAFT"} or \code{"CAFT.Efron"}.}
 #' \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
 #' each OTU count to the log-linear model. The number of columns should match
 #' the number of covairates from \code{Y} and \code{C}.}
@@ -43,22 +34,18 @@
 #' also be used to calculated the effect size of each OTU, defined as the difference
 #' from the median of all betas.}
 #' \item{test.rank}{test statistics from the proposed score test}
-#' \item{test.rank.correct}{the corrected test statistics from the proposed
-#'          score test via modified Efron correction method}
 #' \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 #'          above}
 #' \item{p.otu}{p-values for individual OTU association tests}
-#' \item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
-#'    adjustment method specified in \code{adjust.method}.)
-#'          for individual OTU association tests}
 #' \item{p.detected.otu}{detected significantly differential abundant taxa
 #'          (denoted by the column names of the OTU table) at the nominal FDR
 #'          based on \code{p.otu}}
+#' \item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
+#'    adjustment method specified in \code{adjust.method}.)
+#'          for individual OTU association tests}
 #' \item{q.detected.otu}{detected significantly differential abundant taxa
 #'          (denoted by the column names of the OTU table) at the nominal FDR
 #'          based on \code{q.otu}}
-#' \item{CAFT.aic}{The AIC value for the original CAFT approach}
-#' \item{CAFT.Efron.aic}{The AIC value for the CAFT.Efron approach}
 #'}
 #' @import stats
 #' @import graphics
@@ -93,14 +80,16 @@
 #' Age = as.numeric(sample.tab$age)
 #' Gender = as.numeric(factor(sample.tab$gender)) - 1
 #'
-#' # CAFT
 #' res.CAFT = caft(otu.table=count.tab, Y=Disease,
 #'                C=data.frame(Age=Age, Gender=Gender),
-#'                filter.thresh=0.06, CAFT.method="CAFT",
-#'                adjust.method="BH")
+#'                filter.thresh=0.06, adjust.method="BH")
 #'
-caft = function(otu.table, Y, C, filter.thresh=0.05, fdr.nominal=0.20,
-                CAFT.method="CAFT", adjust.method="BH", efron.plot=FALSE){
+caft = function(otu.table,
+                Y,
+                C,
+                filter.thresh=0.05,
+                fdr.nominal=0.20,
+                adjust.method="BH"){
 
   if (is.matrix(otu.table)){otu.table = as.matrix(otu.table)}
 
@@ -221,69 +210,12 @@ caft = function(otu.table, Y, C, filter.thresh=0.05, fdr.nominal=0.20,
     }
   }
 
-  # allout = data.frame(b1.est.rank.gs.pen=est.rank.gs.pen$b1.est,
-  #                     test.rank.pen=test.rank.pen,
-  #                     test.rank.pen.norm=test.rank.pen.norm,
-  #                     p.aft=p.rank.pen,
-  #                     skip.rare=skip.rare,
-  #                     skip.fail.rank.fit.pen=skip.fail.rank.fit.pen,
-  #                     skip.fail.rank.test.pen=skip.fail.rank.test.pen)
-  # rownames(allout) = taxa.name
-
-  switch (CAFT.method,
-    CAFT = {
-
-      #--------------------------
-      # p-value adjusted by BH
-      #--------------------------
-
-      method.pick = "CAFT"
-      est.rank.gs.pen = est.rank.gs.pen
-      b1.median.pen = b1.median.pen
-      test.rank = test.rank.pen
-      test.rank.correct = NULL
-      skip.otu = skip.rare
-
-      p.otu = p.rank.pen
-      p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)]
-
-      q.otu = p.adjust(p.otu, method=adjust.method)
-      q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]
-
-      CAFT.aic = NULL
-      CAFT.Efron.aic = NULL
-
-    },
-    CAFT.Efron = {
-
-      #--------------------------
-      # efron correction (To be added soon)
-      #--------------------------
-
-    },
-    CAFT.MIX = {
-
-      #--------------------------
-      # efron correction (To be added soon)
-      #--------------------------
-
-      #--------------------------
-      # efron.mix selection (To be added soon)
-      #--------------------------
-
-    }
-  )
-
-  return(list(method.pick=method.pick,
-              est.rank.gs.pen=est.rank.gs.pen,
+  return(list(est.rank.gs.pen=est.rank.gs.pen,
               b1.median.pen=b1.median.pen,
-              test.rank=test.rank,
-              test.rank.correct=test.rank.correct,
-              skip.otu=skip.otu,
-              p.otu=p.otu,
-              p.detected.otu=p.detected.otu,
-              q.otu=q.otu,
-              q.detected.otu=q.detected.otu,
-              CAFT.aic=CAFT.aic,
-              CAFT.Efron.aic=CAFT.Efron.aic))
+              test.rank=test.rank.pen,
+              skip.otu=skip.rare,
+              p.otu = p.rank.pen,
+              p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
+              q.otu = p.adjust(p.otu, method=adjust.method),
+              q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]))
 }

@@ -10,9 +10,7 @@ caft(
   C,
   filter.thresh = 0.05,
   fdr.nominal = 0.2,
-  CAFT.method = "CAFT",
-  adjust.method = "BH",
-  efron.plot = FALSE
+  adjust.method = "BH"
 )
 }
 \arguments{
@@ -32,24 +30,13 @@ of samples are filtered out. We set the default to be 0.05.}
 
 \item{fdr.nominal}{the nominal FDR. The default is 0.2.}
 
-\item{CAFT.method}{a character string. If "CAFT", the function returns
-results from the original AFT-based taxa testing procedure. We set the
-default to be "CAFT". The optional methods of "CAFT.MIX" and "CAFT.Efron"
-will be added soon.}
-
 \item{adjust.method}{a character string. Use multiple comparison/testing
 adjustment methods to control the family-wise error rate/false discover
 rate. Default to "BH". See \code{\link{p.adjust}} for the details.}
-
-\item{efron.plot}{a logical value, should the QQ plot fits comparison between the
-methods of "CAFT" and "CAFT.Efron" be saved as part of the results object.
-Only available when \code{CAFT.method=CAFT.MIX}. (To be added soon)}
 }
 \value{
 Return a list consisting of
 \describe{
-\item{method.pick}{Method selected per taxon based on AIC from the QQ plot fits.
-Either \code{"CAFT"} or \code{"CAFT.Efron"}.}
 \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
 each OTU count to the log-linear model. The number of columns should match
 the number of covairates from \code{Y} and \code{C}.}
@@ -58,22 +45,18 @@ restricted score test of the significance of differential abundant OTU. It can
 also be used to calculated the effect size of each OTU, defined as the difference
 from the median of all betas.}
 \item{test.rank}{test statistics from the proposed score test}
-\item{test.rank.correct}{the corrected test statistics from the proposed
-score test via modified Efron correction method}
 \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 above}
 \item{p.otu}{p-values for individual OTU association tests}
-\item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
-adjustment method specified in \code{adjust.method}.)
-for individual OTU association tests}
 \item{p.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{p.otu}}
+\item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
+adjustment method specified in \code{adjust.method}.)
+for individual OTU association tests}
 \item{q.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{q.otu}}
-\item{CAFT.aic}{The AIC value for the original CAFT approach}
-\item{CAFT.Efron.aic}{The AIC value for the CAFT.Efron approach}
 }
 }
 \description{
@@ -115,10 +98,8 @@ Disease = as.numeric(factor(sample.tab$disease, levels = c("healthy", "CRC"))) -
 Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
 
-# CAFT
 res.CAFT = caft(otu.table=count.tab, Y=Disease,
                C=data.frame(Age=Age, Gender=Gender),
-               filter.thresh=0.06, CAFT.method="CAFT",
-               adjust.method="BH")
+               filter.thresh=0.06, adjust.method="BH")
 
 }

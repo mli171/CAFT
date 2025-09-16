@@ -97,8 +97,7 @@ mean(cens.prop)
 ```{r}
 res.CAFT = caft(otu.table=count.tab, Y=Disease, 
                C=data.frame(Age=Age, Gender=Gender),
-               filter.thresh=0.06, CAFT.method="CAFT",
-               adjust.method="BH")
+               filter.thresh=0.06, adjust.method="BH")
 ```
 
 Note that we can also calculate the censoring proportion (proportion of zero 

@@ -209,13 +209,14 @@ caft = function(otu.table,
       }
     }
   }
-
+  p.otu = p.rank.pen
+  q.otu = p.adjust(p.otu, method=adjust.method)
   return(list(est.rank.gs.pen=est.rank.gs.pen,
               b1.median.pen=b1.median.pen,
               test.rank=test.rank.pen,
               skip.otu=skip.rare,
-              p.otu = p.rank.pen,
+              p.otu = p.otu,
               p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
-              q.otu = p.adjust(p.otu, method=adjust.method),
+              q.otu = q.otu,
               q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]))
 }

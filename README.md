@@ -85,8 +85,7 @@ taxa, if more conservative results are desired, comparing to the method of
 # CAFT
 res.CAFT = caft(otu.table=count.tab, Y=Disease,
                 C=data.frame(Age=Age, Gender=Gender),
-                filter.thresh=0.06, CAFT.method="CAFT",
-                adjust.method="BH")
+                filter.thresh=0.06, adjust.method="BH")
 ```
 
 ## References

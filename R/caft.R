@@ -98,6 +98,9 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
   if (is.null(x) & is.null(x.test)) {
     stop("No data provided: Either x or x.test (and possibly x.cov) required")
   }
+  if (!is.null(x) & !is.null(x.test)) {
+    stop("Only one of x or x.test can be specified, not both")
+  }
   if (is.null(x)) {
     x <- cbind(x.test, x.cov)
   }
@@ -106,13 +109,12 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
   }
 
   if (NROW(otu.table) != NROW(x)) {
-    stop("
-
- Number of samples not match
-                                        between OTU table and covairates
-                                        matrix!")
+    stop(" Number of samples not match between OTU table and covairates matrix!")
   }
   if (!is.null(Gamma)) {
+    if (is.null(x)) {
+      stop("Gamma should not be specified if x.test (and possibly x.cov) is specified")
+    }
     if (!("matrix" %in% class(Gamma))) Gamma <- matrix(Gamma, nrow = 1)
     Gamma.rank <- qr(Gamma)$rank
     if (Gamma.rank != nrow(Gamma)) {

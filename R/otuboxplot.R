@@ -69,8 +69,6 @@ otuboxplot = function(plot.otu, count.data, groups, plot.title=NULL, type="origi
     plotYlabl = "-log10(Relative Abundance)"
   }
 
-  # utils::globalVariables(c("group", "val"))
-
   plotdata = data.frame(
     val   = as.vector(rel_mat),
     group = rep(groups, each = ncol(rel_mat))
@@ -99,3 +97,5 @@ otuboxplot = function(plot.otu, count.data, groups, plot.title=NULL, type="origi
   return(pcommon)
 
 }
+
+utils::globalVariables(c("group", "val"))

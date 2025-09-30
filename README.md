@@ -1,6 +1,9 @@
 # CAFT
 Rank-Based Compositional Analysis using Log-Linear Models for Microbiome Data with Zero Cells.
 
+Authors: Glen Satten (GSatten@emory.edu), Mo Li (mli171@jhu.edu), Ni Zhao (nzhao10@jhu.edu)
+---
+
 ## Overview
 In this study, we introduce a novel statistical framework for differential
 abundance analysis of microbiome data, termed the Compositional Accelerated

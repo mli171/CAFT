@@ -2,6 +2,8 @@
 
 export(caft)
 export(otuboxplot)
+import(ICSNP)
+import(MASS)
 import(graphics)
 import(phyloseq)
 import(stats)

@@ -11,11 +11,14 @@
 #'
 #' @param otu.table the community OTU table (or taxa count table). Each row
 #'  corresponds to a sample and each column corresponds to one OTU (taxa).
-#' @param Y the covariates are of interest. It can be a vector, matrix, or data
-#'    frame. A K-level categorical variable will need to be binarized to K-1
-#'    covariates.
-#' @param C other covariates that need to be adjusted. Requirements are the
-#'    same as \code{Y} above.
+#' @param x.test the covariates are of interest. It can be a vector, matrix, or data
+#'    frame. All K-level categorical variables should be converted to K-1
+#'    indicator variables before input.  Use if default Gamma is desired.
+#' @param x.cov other covariates that need to be adjusted. Requirements are the
+#'    same as \code{X.test} above.  Use if default Gamma is desired.
+#' @param Gamma matrix to specify what hypothesis to test.  Not used if data are entered as X.test and X.cov.
+#' @param x data for all covariates.  Only used if matrix Gamma is provided as input. It can be a vector, matrix, or data
+#'    frame. All K-level categorical variables should be converted to K-1 indicator variables before input.
 #' @param filter.thresh a real value between 0 and 1 for OTU table sample presence
 #'    filtering. Any OTUs present in fewer than \code{filter.thresh} proportion
 #'    of samples are filtered out. We set the default to be 0.05.
@@ -29,7 +32,7 @@
 #' \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
 #' each OTU count to the log-linear model. The number of columns should match
 #' the number of covairates from \code{Y} and \code{C}.}
-#' \item{b1.median.pen}{The selected median of all betas, which was used in the
+#' \item{b.median.pen}{The selected median of all betas, which was used in the
 #' restricted score test of the significance of differential abundant OTU. It can
 #' also be used to calculated the effect size of each OTU, defined as the difference
 #' from the median of all betas.}
@@ -37,12 +40,12 @@
 #' \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 #'          above}
 #' \item{p.otu}{p-values for individual OTU association tests}
-#' \item{p.detected.otu}{detected significantly differential abundant taxa
-#'          (denoted by the column names of the OTU table) at the nominal FDR
-#'          based on \code{p.otu}}
 #' \item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
 #'    adjustment method specified in \code{adjust.method}.)
 #'          for individual OTU association tests}
+#' \item{p.detected.otu}{detected significantly differential abundant taxa
+#'          (denoted by the column names of the OTU table) at the nominal FDR
+#'          based on \code{p.otu}}
 #' \item{q.detected.otu}{detected significantly differential abundant taxa
 #'          (denoted by the column names of the OTU table) at the nominal FDR
 #'          based on \code{q.otu}}
@@ -50,6 +53,8 @@
 #' @import stats
 #' @import graphics
 #' @import phyloseq
+#' @import MASS
+#' @import ICSNP
 #' @export
 #' @examples
 #' library(CAFT)
@@ -80,48 +85,93 @@
 #' Age = as.numeric(sample.tab$age)
 #' Gender = as.numeric(factor(sample.tab$gender)) - 1
 #'
-#' res.CAFT = caft(otu.table=count.tab, Y=Disease,
-#'                C=data.frame(Age=Age, Gender=Gender),
+#' # CAFT
+#' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
+#'                x.cov=data.frame(Age=Age, Gender=Gender),
 #'                filter.thresh=0.06, adjust.method="BH")
 #'
-caft = function(otu.table,
-                Y,
-                C,
-                filter.thresh=0.05,
-                fdr.nominal=0.20,
-                adjust.method="BH"){
-
-  if (is.matrix(otu.table)){otu.table = as.matrix(otu.table)}
-
-  x = cbind(Y, C)
-  if (is.matrix(x)) {x = as.matrix(x)}
-  if (NROW(otu.table) != NROW(x)) {stop("\n\n Number of samples not match
-                                        between OTU table and covairates
-                                        matrix!")}
-
-  # missing values
-  pNA.x = which(apply(x, 1, function(x) any(is.na(x)))) # covariates
-  pNA.otu = which(apply(otu.table, 1, function(x) any(is.na(x)))) # covariates
-  pNA = unique(c(pNA.x, pNA.otu))
-  if(length(pNA) > 0){
-    warnings("\n\n Missing values deleted!")
-    otu.table = otu.table[-pNA, ]
-    x = x[-pNA,]
+caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL, filter.thresh = 0.05, fdr.nominal = 0.20,
+                 adjust.method = "BH") {
+  if (!is.matrix(otu.table)) {
+    otu.table <- as.matrix(otu.table)
+  }
+  if (is.null(x) & is.null(x.test)) {
+    stop("No data provided: Either x or x.test (and possibly x.cov) required")
+  }
+  if (is.null(x)) {
+    x <- cbind(x.test, x.cov)
+  }
+  if (!is.matrix(x)) {
+    x <- as.matrix(x)
   }
 
+  if (NROW(otu.table) != NROW(x)) {
+    stop("
+
+ Number of samples not match
+                                        between OTU table and covairates
+                                        matrix!")
+  }
+  if (!is.null(Gamma)) {
+    if (!("matrix" %in% class(Gamma))) Gamma <- matrix(Gamma, nrow = 1)
+    Gamma.rank <- qr(Gamma)$rank
+    if (Gamma.rank != nrow(Gamma)) {
+      stop("Gamma matrix provided does not have full row rank")
+    }
+  }
+
+  # missing values
+  pNA.x <- which(apply(x, 1, function(x) any(is.na(x)))) # covariates
+  pNA.otu <- which(apply(otu.table, 1, function(x) any(is.na(x)))) # covariates
+  pNA <- unique(c(pNA.x, pNA.otu))
+  if (length(pNA) > 0) {
+    warnings("
+
+ Missing values deleted!")
+    otu.table <- otu.table[-pNA, ]
+    x <- x[-pNA, ]
+  }
+
+
   # center the covariates
-  x = as.matrix(x - t(replicate(NROW(x), colMeans(x))))
+  x <- as.matrix(x - t(replicate(NROW(x), colMeans(x))))
 
-  n.data = NROW(otu.table)
-  n.taxa = NCOL(otu.table)
+  n.data <- NROW(otu.table)
+  n.taxa <- NCOL(otu.table)
+  n.param <- NCOL(x)
+  if (is.null(Gamma)) {
+    n.test <- NCOL(x.test)
+  } else {
+    n.test <- nrow(Gamma)
+  }
 
-  taxa.name = colnames(otu.table)
-  if(is.null(taxa.name)){taxa.name = paste("tstar", 1:n.taxa)}
-
-  ra.all = otu.table/rowSums(otu.table)
-  lib.size = rowSums(otu.table)
+  taxa.name <- colnames(otu.table)
+  if (is.null(taxa.name)) {
+    taxa.name <- paste("tstar", 1:n.taxa)
+  }
+  ra.all <- otu.table / rowSums(otu.table)
+  lib.size <- rowSums(otu.table)
   # Censored relative abundance: every row should same
-  lim.ra = matrix(1/lib.size, nrow = n.data, ncol = n.taxa)
+  lim.ra <- matrix(1 / lib.size, nrow = n.data, ncol = n.taxa)
+
+  # set up Gamma and Lambda matrices
+  if (is.null(Gamma)) {
+    Gamma <- diag(n.param)[1:n.test, , drop = FALSE]
+    if (n.test < n.param) {
+      Lambda <- diag(n.param)[(n.test + 1):n.param, , drop = FALSE]
+    } else {
+      Lambda <- NULL
+    }
+  } else {
+    if (n.test < n.param) {
+      Lambda <- t(MASS::Null(t(Gamma)))
+    } else {
+      Lambda <- NULL
+    }
+  }
+  Gamma.ginv <- ginv(Gamma)
+  Lambda.ginv <- ginv(Lambda)
+
 
   #--------------------------
   # create survival data
@@ -130,43 +180,48 @@ caft = function(otu.table,
   log_pos <- -log10(ra.all)
   t.star.all <- matrix(log_neg,
                        nrow = nrow(otu.table),
-                       ncol = ncol(otu.table))
+                       ncol = ncol(otu.table)
+  )
   idx <- (otu.table > 0)
   t.star.all[idx] <- log_pos[idx]
-  t.star.all = as.data.frame(t.star.all)
-  colnames(t.star.all) = paste("tstar", 1:n.taxa)
+  t.star.all <- as.data.frame(t.star.all)
+  colnames(t.star.all) <- paste("tstar", 1:n.taxa)
 
-  delta.all = ((otu.table > 0)^2)
-  colnames(delta.all) = paste("delta", 1:n.taxa)
+  delta.all <- ((otu.table > 0)^2)
+  colnames(delta.all) <- paste("delta", 1:n.taxa)
 
-  data = data.frame(t.star.all, delta.all)
+  data <- data.frame(t.star.all, delta.all)
 
-  est.rank.gs.pen = as.data.frame(matrix(NA, n.taxa, NCOL(x)))
-  colnames(est.rank.gs.pen) = paste0("b", 1:NCOL(x), ".est")
+  est.rank.gs.pen <- est.rank.gs.pen.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
+  colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")
 
-  skip.rare = skip.fail.rank.fit = rep(0, n.taxa)
-  skip.fail.rank.fit.pen = rep(0, n.taxa)
+  skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
+  skip.fail.rank.fit.pen <- rep(0, n.taxa)
 
   #--------------------------
-  # parameter estimates
+  # unconstrained parameter estimates
   #--------------------------
 
-  for (ii in 1:n.taxa){
-    tstar = data[, grep("tstar", colnames(data))[ii]]
-    delta.1 = data[, grep("delta", colnames(data))[ii]]
-    if (sum(delta.1) <= n.data*filter.thresh){
-      out = rep(NA, NCOL(x))
-      skip.rare[ii]  = 1
-    }else{
-      fit0.pen = try(estimate.rank.aft(y=tstar, delta=delta.1, x=x,
-                                       Gamma=NULL, b=NULL, beta=NULL,
-                                       test=TRUE, regularize = T,
-                                       tol=10^-12))
-      if (inherits(fit0.pen, "try-error")){
-        est.rank.gs.pen[ii, ] = rep(NA, NCOL(x))
-        skip.fail.rank.fit.pen[ii] = 1
-      }else{
-        est.rank.gs.pen[ii, ]  = fit0.pen$beta
+  for (ii in 1:n.taxa) {
+    tstar <- data[, grep("tstar", colnames(data))[ii]]
+    delta.1 <- data[, grep("delta", colnames(data))[ii]]
+    if (sum(delta.1) <= n.data * filter.thresh) {
+      out <- rep(NA, NCOL(x))
+      skip.rare[ii] <- 1
+    } else {
+      fit0.pen <- try(estimate.rank.aft(
+        y = tstar, delta = delta.1, x = x,
+        Gamma = NULL, Lambda = diag(n.param),
+        Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
+        b = NULL, beta = NULL,
+        test = TRUE, regularize = T,
+        tol = 10^-12
+      ))
+      if (inherits(fit0.pen, "try-error")) {
+        est.rank.gs.pen[ii, ] <- rep(NA, NCOL(x))
+        skip.fail.rank.fit.pen[ii] <- 1
+      } else {
+        est.rank.gs.pen[ii, ] <- fit0.pen$beta
       }
     }
   }
@@ -175,48 +230,66 @@ caft = function(otu.table,
   # test equal to median
   #--------------------------
 
-  b1.median.pen = median(est.rank.gs.pen$b1.est, na.rm = T)
-  test.rank.pen = test.rank.pen.norm = rep(NA, n.taxa)
-  p.rank.pen  = rep(NA, n.taxa)
-  skip.fail.rank.test.pen = rep(NA, n.taxa)
-  for (ii in 1:n.taxa){
-    tstar = data[, grep("tstar", colnames(data))[ii]]
-    delta.1 = data[, grep("delta", colnames(data))[ii]]
-    if (sum(delta.1) > n.data*filter.thresh){
-      # first covariate is the testing covariate
-      res.pen = try(estimate.rank.aft(y=tstar, delta=delta.1, x=x,
-                                      Gamma=c(1,rep(0,NCOL(x)-1)),
-                                      b=b1.median.pen,
-                                      beta=NULL, test=TRUE,
-                                      regularize=T, tol=10^-12))
-      if (inherits(res.pen, "try-error")){
-        p.rank.pen[ii] = NA
-        test.rank.pen[ii] = NA
-        test.rank.pen.norm[ii] = NA
-        skip.fail.rank.test.pen[ii] =  1
-      }else{
-        temp.rank = try(test.rank.aft(res.pen, score="rank"))
-        if (inherits(temp.rank, "try-error")){
-          p.rank.pen[ii] = NA
-          test.rank.pen.norm[ii] = NA
-          test.rank.pen[ii] = NA
-          skip.fail.rank.test.pen[ii] =  1
-        }else{
-          p.rank.pen[ii] = temp.rank$p.value
-          test.rank.pen[ii] = temp.rank$test
-          test.rank.pen.norm[ii] = temp.rank$z.score
+
+  if (n.test == 1) {
+    b.median.pen <- median(est.rank.gs.pen$b1.est, na.rm = T)
+  } else {
+    b.median.pen <- Gamma %*% ICSNP::HR.Mest(est.rank.gs.pen, na.action = na.omit)$center
+  }
+  if (n.test == n.param) Lambda <- NULL
+
+
+  test.rank.pen <- df.rank.pen <- rep(NA, n.taxa)
+  test.rank.pen.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
+  p.rank.pen <- rep(NA, n.taxa)
+  skip.fail.rank.test.pen <- rep(NA, n.taxa)
+  for (ii in 1:n.taxa) {
+    tstar <- data[, grep("tstar", colnames(data))[ii]]
+    delta.1 <- data[, grep("delta", colnames(data))[ii]]
+    if (sum(delta.1) > n.data * filter.thresh) {
+      res.pen <- try(estimate.rank.aft(
+        y = tstar, delta = delta.1, x = x,
+        Gamma = Gamma, Lambda = Lambda,
+        Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
+        b = b.median.pen,
+        beta = NULL, test = TRUE,
+        regularize = T, tol = 10^-12
+      ))
+      if (inherits(res.pen, "try-error")) {
+        p.rank.pen[ii] <- NA
+        test.rank.pen[ii] <- NA
+        test.rank.pen.norm[ii, ] <- NA
+        skip.fail.rank.test.pen[ii] <- 1
+      } else {
+        temp.rank <- try(test.rank.aft(res.pen, score = "rank"))
+        if (inherits(temp.rank, "try-error")) {
+          p.rank.pen[ii] <- NA
+          test.rank.pen.norm[ii, ] <- NA
+          test.rank.pen[ii] <- NA
+          skip.fail.rank.test.pen[ii] <- 1
+        } else {
+          p.rank.pen[ii] <- temp.rank$p.value
+          test.rank.pen[ii] <- temp.rank$test
+          test.rank.pen.norm[ii, ] <- temp.rank$z.score
+          df.rank.pen[ii] <- temp.rank$df
+          est.rank.gs.pen.r[ii, ] <- res.pen$beta.r
         }
       }
     }
   }
-  p.otu = p.rank.pen
-  q.otu = p.adjust(p.otu, method=adjust.method)
-  return(list(est.rank.gs.pen=est.rank.gs.pen,
-              b1.median.pen=b1.median.pen,
-              test.rank=test.rank.pen,
-              skip.otu=skip.rare,
-              p.otu = p.otu,
-              p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
-              q.otu = q.otu,
-              q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]))
+
+  p.otu <- p.rank.pen
+  q.otu <- p.adjust(p.otu, method = adjust.method)
+  return(list(
+    est.rank.gs.pen = est.rank.gs.pen,
+    b.median.pen = b.median.pen,
+    test.rank = test.rank.pen,
+    skip.otu = skip.rare,
+    p.otu = p.otu,
+    df.test = df.rank.pen,
+    est.rank.gs.pen.r = est.rank.gs.pen.r,
+    p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
+    q.otu = q.otu,
+    q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]
+  ))
 }

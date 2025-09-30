@@ -13,13 +13,7 @@ test procedures. For FDR control, we utilize and expand the idea from Efron’s
 empirical null distribution to achieve better FDR control.
 
 ## Package download and installation
-You can install the version of CAFT from CRAN:
-
-```{r}
-install.packages("CAFT")
-```
-
-or the development version from Github:
+You can install the version of CAFT from Github:
 
 ```{r}
 # install.packages("devtools")

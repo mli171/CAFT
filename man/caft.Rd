@@ -6,8 +6,10 @@
 \usage{
 caft(
   otu.table,
-  Y,
-  C,
+  x.test = NULL,
+  x.cov = NULL,
+  x = NULL,
+  Gamma = NULL,
   filter.thresh = 0.05,
   fdr.nominal = 0.2,
   adjust.method = "BH"
@@ -17,12 +19,17 @@ caft(
 \item{otu.table}{the community OTU table (or taxa count table). Each row
 corresponds to a sample and each column corresponds to one OTU (taxa).}
 
-\item{Y}{the covariates are of interest. It can be a vector, matrix, or data
-frame. A K-level categorical variable will need to be binarized to K-1
-covariates.}
+\item{x.test}{the covariates are of interest. It can be a vector, matrix, or data
+frame. All K-level categorical variables should be converted to K-1
+indicator variables before input.  Use if default Gamma is desired.}
 
-\item{C}{other covariates that need to be adjusted. Requirements are the
-same as \code{Y} above.}
+\item{x.cov}{other covariates that need to be adjusted. Requirements are the
+same as \code{X.test} above.  Use if default Gamma is desired.}
+
+\item{x}{data for all covariates.  Only used if matrix Gamma is provided as input. It can be a vector, matrix, or data
+frame. All K-level categorical variables should be converted to K-1 indicator variables before input.}
+
+\item{Gamma}{matrix to specify what hypothesis to test.  Not used if data are entered as X.test and X.cov.}
 
 \item{filter.thresh}{a real value between 0 and 1 for OTU table sample presence
 filtering. Any OTUs present in fewer than \code{filter.thresh} proportion
@@ -40,7 +47,7 @@ Return a list consisting of
 \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
 each OTU count to the log-linear model. The number of columns should match
 the number of covairates from \code{Y} and \code{C}.}
-\item{b1.median.pen}{The selected median of all betas, which was used in the
+\item{b.median.pen}{The selected median of all betas, which was used in the
 restricted score test of the significance of differential abundant OTU. It can
 also be used to calculated the effect size of each OTU, defined as the difference
 from the median of all betas.}
@@ -48,12 +55,12 @@ from the median of all betas.}
 \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 above}
 \item{p.otu}{p-values for individual OTU association tests}
-\item{p.detected.otu}{detected significantly differential abundant taxa
-(denoted by the column names of the OTU table) at the nominal FDR
-based on \code{p.otu}}
 \item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
 adjustment method specified in \code{adjust.method}.)
 for individual OTU association tests}
+\item{p.detected.otu}{detected significantly differential abundant taxa
+(denoted by the column names of the OTU table) at the nominal FDR
+based on \code{p.otu}}
 \item{q.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{q.otu}}
@@ -98,8 +105,9 @@ Disease = as.numeric(factor(sample.tab$disease, levels = c("healthy", "CRC"))) -
 Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
 
-res.CAFT = caft(otu.table=count.tab, Y=Disease,
-               C=data.frame(Age=Age, Gender=Gender),
+# CAFT
+res.CAFT = caft(otu.table=count.tab, x.test=Disease,
+               x.cov=data.frame(Age=Age, Gender=Gender),
                filter.thresh=0.06, adjust.method="BH")
 
 }

@@ -132,7 +132,6 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     x <- x[-pNA, ]
   }
 
-
   # center the covariates
   x <- as.matrix(x - t(replicate(NROW(x), colMeans(x))))
 
@@ -230,14 +229,13 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
   # test equal to median
   #--------------------------
 
-
-  if (n.test == 1) {
-    b.median.pen <- median(est.rank.gs.pen$b1.est, na.rm = T)
-  } else {
-    b.median.pen <- Gamma %*% ICSNP::HR.Mest(est.rank.gs.pen, na.action = na.omit)$center
+  if (n.test==1) {
+    b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
   }
-  if (n.test == n.param) Lambda <- NULL
-
+  else {
+    b.median.pen =  ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+  }
+  if (n.test==n.param) Lambda=NULL
 
   test.rank.pen <- df.rank.pen <- rep(NA, n.taxa)
   test.rank.pen.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)

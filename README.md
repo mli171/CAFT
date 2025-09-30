@@ -55,7 +55,7 @@ count.tab = count.tab[p, ]
 
 pNA = which(is.na(sample.tab$age))
 if(length(pNA) > 0){
-  count.tab = count.tab[-pNA, ]
+count.tab = count.tab[-pNA, ]
   sample.tab = sample.tab[-pNA,]
 }
 
@@ -69,9 +69,9 @@ Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
 
 # CAFT
-res.CAFT = caft(otu.table=count.tab, Y=Disease,
-                C=data.frame(Age=Age, Gender=Gender),
-                filter.thresh=0.06, adjust.method="BH")
+res.CAFT = caft(otu.table=count.tab, x.test=Disease,
+               x.cov=data.frame(Age=Age, Gender=Gender),
+               filter.thresh=0.06, adjust.method="BH")
 ```
 
 ## References

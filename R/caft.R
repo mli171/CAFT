@@ -92,7 +92,7 @@
 #'                 x.cov=data.frame(Age=Age, Gender=Gender),
 #'                 filter.thresh=0.06, adjust.method="BH")
 #'
-#' # CAFT (parallel verrsion)
+#' # CAFT (parallel version)
 #' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
 #'                 x.cov=data.frame(Age=Age, Gender=Gender),
 #'                 filter.thresh=0.06, adjust.method="BH",

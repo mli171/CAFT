@@ -7,7 +7,7 @@ Authors@R: c(person("Glen A.", "Satten", email="gsatten@emory.edu", role=c("aut"
              person("Mo", "Li", email="mo.li@louisiana.edu", role=c("aut", "ctb", "cre", "cph")),
 	           person("Ni", "Zhao", role=c("aut", "ctb", "cph")))
 Description: High-throughput sequencing has significantly improved our understanding of microbiome communities and their impacts on biological processes and human health. While statistical methods have been developed to address the unique characteristics of microbiome datasets, varying biases among taxa continue to pose challenges for the standardization of experimental results and the inference of individual taxa biases. Traditional methods, such as log-linear models, often require adding pseudo counts to manage zero counts, which can introduce bias and affect outcomes, especially when zeros correlate with the variable of interest. To tackle these challenges, we propose a new approach that treats zero counts as censored observations, aligning with methods used in other fields dealing with data below detection limits. Our method provides a novel and effective solution for analyzing compositional microbiome data, enabling unbiased estimation and valid inference even in the presence of data sparsity and experimental biases.
-Imports: expm, stats, phyloseq, ggplot2, ggtext, ICSNP, MASS
+Imports: expm, stats, phyloseq, ggplot2, ggtext, ICSNP, MASS, doParallel, foreach
 License: LGPL (>=2)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

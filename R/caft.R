@@ -26,7 +26,7 @@
 #' @param adjust.method a character string. Use multiple comparison/testing
 #'  adjustment methods to control the family-wise error rate/false discover
 #'  rate. Default to "BH". See \code{\link{p.adjust}} for the details.
-#'
+#' @param n.cores the number of cores to be used for parallel computing. The default is 1.
 #' @return Return a list consisting of
 #' \describe{
 #' \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
@@ -55,6 +55,8 @@
 #' @import phyloseq
 #' @import MASS
 #' @import ICSNP
+#' @import foreach
+#' @import doParallel
 #' @export
 #' @examples
 #' library(CAFT)
@@ -91,7 +93,7 @@
 #'                filter.thresh=0.06, adjust.method="BH")
 #'
 caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL, filter.thresh = 0.05, fdr.nominal = 0.20,
-                 adjust.method = "BH") {
+                   adjust.method = "BH", n.cores=1L) {
   if (!is.matrix(otu.table)) {
     otu.table <- as.matrix(otu.table)
   }
@@ -127,9 +129,7 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
   pNA.otu <- which(apply(otu.table, 1, function(x) any(is.na(x)))) # covariates
   pNA <- unique(c(pNA.x, pNA.otu))
   if (length(pNA) > 0) {
-    warnings("
-
- Missing values deleted!")
+    warnings("Missing values deleted!")
     otu.table <- otu.table[-pNA, ]
     x <- x[-pNA, ]
   }
@@ -170,9 +170,8 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
       Lambda <- NULL
     }
   }
-  Gamma.ginv <- ginv(Gamma)
-  Lambda.ginv <- ginv(Lambda)
-
+  Gamma.ginv <- MASS::ginv(Gamma)
+  Lambda.ginv <- MASS::ginv(Lambda)
 
   #--------------------------
   # create survival data
@@ -193,90 +192,212 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
 
   data <- data.frame(t.star.all, delta.all)
 
-  est.rank.gs.pen <- est.rank.gs.pen.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
-  colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")
-
-  skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
-  skip.fail.rank.fit.pen <- rep(0, n.taxa)
-
   #--------------------------
   # unconstrained parameter estimates
   #--------------------------
 
-  for (ii in 1:n.taxa) {
-    tstar <- data[, grep("tstar", colnames(data))[ii]]
-    delta.1 <- data[, grep("delta", colnames(data))[ii]]
-    if (sum(delta.1) <= n.data * filter.thresh) {
-      out <- rep(NA, NCOL(x))
-      skip.rare[ii] <- 1
-    } else {
+  if(n.cores > 1L){
+
+    doParallel::registerDoParallel(core=n.cores)
+
+    col_tstar_idx <- grep("^tstar", colnames(data))
+    col_delta_idx <- grep("^delta", colnames(data))
+    stopifnot(length(col_tstar_idx) >= n.taxa, length(col_delta_idx) >= n.taxa)
+
+    # --------- Precompute indices / sizes ----------
+    col_tstar_idx  <- grep("^tstar", colnames(data))
+    col_delta_idx  <- grep("^delta", colnames(data))
+    stopifnot(length(col_tstar_idx) >= n.taxa, length(col_delta_idx) >= n.taxa)
+
+    ncoef <- NCOL(x)
+
+    res_phase1 <- foreach(
+      ii = 1:n.taxa,
+      .errorhandling = "pass"
+    ) %dopar% {
+      tstar   <- data[, col_tstar_idx[ii]]
+      delta.1 <- data[, col_delta_idx[ii]]
+
+      if (sum(delta.1) <= n.data * filter.thresh) {
+        return(list(
+          beta = rep(NA_real_, ncoef),
+          skip_rare = 1L,
+          skip_fail_fit = 0L
+        ))
+      }
+
       fit0.pen <- try(estimate.rank.aft(
         y = tstar, delta = delta.1, x = x,
         Gamma = NULL, Lambda = diag(n.param),
         Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
         b = NULL, beta = NULL,
-        test = TRUE, regularize = T,
-        tol = 10^-12
-      ))
+        test = TRUE, regularize = TRUE, tol = 1e-12
+      ), silent = TRUE)
+
       if (inherits(fit0.pen, "try-error")) {
-        est.rank.gs.pen[ii, ] <- rep(NA, NCOL(x))
-        skip.fail.rank.fit.pen[ii] <- 1
+        list(beta = rep(NA_real_, ncoef), skip_rare = 0L, skip_fail_fit = 1L)
       } else {
-        est.rank.gs.pen[ii, ] <- fit0.pen$beta
+        list(beta = as.numeric(fit0.pen$beta), skip_rare = 0L, skip_fail_fit = 0L)
       }
     }
-  }
 
-  #--------------------------
-  # test equal to median
-  #--------------------------
+    est.rank.gs.pen <- do.call(rbind, lapply(res_phase1, `[[`, "beta"))
+    colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")
+    skip.rare <- vapply(res_phase1, function(z) z$skip_rare, integer(1))
+    skip.fail.rank.fit.pen <- vapply(res_phase1, function(z) z$skip_fail_fit, integer(1))
 
-  if (n.test==1) {
-    b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
-  }
-  else {
-    b.median.pen =  ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
-  }
-  if (n.test==n.param) Lambda=NULL
+    if (n.test==1) {
+      b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
+    } else {
+      b.median.pen =  ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+    }
+    if (n.test==n.param) Lambda=NULL
 
-  test.rank.pen <- df.rank.pen <- rep(NA, n.taxa)
-  test.rank.pen.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
-  p.rank.pen <- rep(NA, n.taxa)
-  skip.fail.rank.test.pen <- rep(NA, n.taxa)
-  for (ii in 1:n.taxa) {
-    tstar <- data[, grep("tstar", colnames(data))[ii]]
-    delta.1 <- data[, grep("delta", colnames(data))[ii]]
-    if (sum(delta.1) > n.data * filter.thresh) {
+    res_phase2 <- foreach(
+      ii = 1:n.taxa,
+      .errorhandling = "pass"
+    ) %dopar% {
+      tstar   <- data[, col_tstar_idx[ii]]
+      delta.1 <- data[, col_delta_idx[ii]]
+
+      if (sum(delta.1) <= n.data * filter.thresh) {
+        return(list(
+          p = NA_real_, test = NA_real_,
+          z = rep(NA_real_, n.test), df = NA_real_,
+          beta_r = rep(NA_real_, ncoef),
+          skip_fail_test = 0L
+        ))
+      }
+
       res.pen <- try(estimate.rank.aft(
         y = tstar, delta = delta.1, x = x,
         Gamma = Gamma, Lambda = Lambda,
         Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-        b = b.median.pen,
-        beta = NULL, test = TRUE,
-        regularize = T, tol = 10^-12
-      ))
+        b = b.median.pen, beta = NULL,
+        test = TRUE, regularize = TRUE, tol = 1e-12
+      ), silent = TRUE)
+
       if (inherits(res.pen, "try-error")) {
-        p.rank.pen[ii] <- NA
-        test.rank.pen[ii] <- NA
-        test.rank.pen.norm[ii, ] <- NA
-        skip.fail.rank.test.pen[ii] <- 1
+        return(list(
+          p = NA_real_, test = NA_real_,
+          z = rep(NA_real_, n.test), df = NA_real_,
+          beta_r = rep(NA_real_, ncoef),
+          skip_fail_test = 1L
+        ))
+      }
+
+      temp.rank <- try(test.rank.aft(res.pen, score = "rank"), silent = TRUE)
+      if (inherits(temp.rank, "try-error")) {
+        list(
+          p = NA_real_, test = NA_real_,
+          z = rep(NA_real_, n.test), df = NA_real_,
+          beta_r = rep(NA_real_, ncoef),
+          skip_fail_test = 1L
+        )
       } else {
-        temp.rank <- try(test.rank.aft(res.pen, score = "rank"))
-        if (inherits(temp.rank, "try-error")) {
+        list(
+          p = as.numeric(temp.rank$p.value),
+          test = as.numeric(temp.rank$test),
+          z = as.numeric(temp.rank$z.score),
+          df = as.numeric(temp.rank$df),
+          beta_r = as.numeric(res.pen$beta.r),
+          skip_fail_test = 0L
+        )
+      }
+    }
+
+    p.rank.pen            <- vapply(res_phase2, function(z) z$p,    numeric(1))
+    test.rank.pen         <- vapply(res_phase2, function(z) z$test, numeric(1))
+    df.rank.pen           <- vapply(res_phase2, function(z) z$df,   numeric(1))
+    skip.fail.rank.test.pen <- vapply(res_phase2, function(z) z$skip_fail_test, integer(1))
+    test.rank.pen.norm <- do.call(rbind, lapply(res_phase2, `[[`, "z"))
+    if (!is.matrix(test.rank.pen.norm)) test.rank.pen.norm <- matrix(test.rank.pen.norm, nrow = n.taxa, ncol = n.test, byrow = TRUE)
+    est.rank.gs.pen.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
+    if (!is.matrix(est.rank.gs.pen.r)) est.rank.gs.pen.r <- matrix(est.rank.gs.pen.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
+
+  }else{
+
+    est.rank.gs.pen <- est.rank.gs.pen.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
+    colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")
+
+    skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
+    skip.fail.rank.fit.pen <- rep(0, n.taxa)
+
+    for (ii in 1:n.taxa) {
+      tstar <- data[, grep("tstar", colnames(data))[ii]]
+      delta.1 <- data[, grep("delta", colnames(data))[ii]]
+      if (sum(delta.1) <= n.data * filter.thresh) {
+        out <- rep(NA, NCOL(x))
+        skip.rare[ii] <- 1
+      } else {
+        fit0.pen <- try(estimate.rank.aft(
+          y = tstar, delta = delta.1, x = x,
+          Gamma = NULL, Lambda = diag(n.param),
+          Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
+          b = NULL, beta = NULL,
+          test = TRUE, regularize = T,
+          tol = 10^-12
+        ))
+        if (inherits(fit0.pen, "try-error")) {
+          est.rank.gs.pen[ii, ] <- rep(NA, NCOL(x))
+          skip.fail.rank.fit.pen[ii] <- 1
+        } else {
+          est.rank.gs.pen[ii, ] <- fit0.pen$beta
+        }
+      }
+    }
+
+    #--------------------------
+    # test equal to median
+    #--------------------------
+
+    if (n.test==1) {
+      b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
+    }else {
+      b.median.pen =  ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+    }
+    if (n.test==n.param) Lambda=NULL
+
+    test.rank.pen <- df.rank.pen <- rep(NA, n.taxa)
+    test.rank.pen.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
+    p.rank.pen <- rep(NA, n.taxa)
+    skip.fail.rank.test.pen <- rep(NA, n.taxa)
+    for (ii in 1:n.taxa) {
+      tstar <- data[, grep("tstar", colnames(data))[ii]]
+      delta.1 <- data[, grep("delta", colnames(data))[ii]]
+      if (sum(delta.1) > n.data * filter.thresh) {
+        res.pen <- try(estimate.rank.aft(
+          y = tstar, delta = delta.1, x = x,
+          Gamma = Gamma, Lambda = Lambda,
+          Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
+          b = b.median.pen,
+          beta = NULL, test = TRUE,
+          regularize = T, tol = 10^-12
+        ))
+        if (inherits(res.pen, "try-error")) {
           p.rank.pen[ii] <- NA
-          test.rank.pen.norm[ii, ] <- NA
           test.rank.pen[ii] <- NA
+          test.rank.pen.norm[ii, ] <- NA
           skip.fail.rank.test.pen[ii] <- 1
         } else {
-          p.rank.pen[ii] <- temp.rank$p.value
-          test.rank.pen[ii] <- temp.rank$test
-          test.rank.pen.norm[ii, ] <- temp.rank$z.score
-          df.rank.pen[ii] <- temp.rank$df
-          est.rank.gs.pen.r[ii, ] <- res.pen$beta.r
+          temp.rank <- try(test.rank.aft(res.pen, score = "rank"))
+          if (inherits(temp.rank, "try-error")) {
+            p.rank.pen[ii] <- NA
+            test.rank.pen.norm[ii, ] <- NA
+            test.rank.pen[ii] <- NA
+            skip.fail.rank.test.pen[ii] <- 1
+          } else {
+            p.rank.pen[ii] <- temp.rank$p.value
+            test.rank.pen[ii] <- temp.rank$test
+            test.rank.pen.norm[ii, ] <- temp.rank$z.score
+            df.rank.pen[ii] <- temp.rank$df
+            est.rank.gs.pen.r[ii, ] <- res.pen$beta.r
+          }
         }
       }
     }
   }
+
 
   p.otu <- p.rank.pen
   q.otu <- p.adjust(p.otu, method = adjust.method)

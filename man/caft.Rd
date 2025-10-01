@@ -12,7 +12,8 @@ caft(
   Gamma = NULL,
   filter.thresh = 0.05,
   fdr.nominal = 0.2,
-  adjust.method = "BH"
+  adjust.method = "BH",
+  n.cores = 1L
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ of samples are filtered out. We set the default to be 0.05.}
 \item{adjust.method}{a character string. Use multiple comparison/testing
 adjustment methods to control the family-wise error rate/false discover
 rate. Default to "BH". See \code{\link{p.adjust}} for the details.}
+
+\item{n.cores}{the number of cores to be used for parallel computing. The default is 1.}
 }
 \value{
 Return a list consisting of

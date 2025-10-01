@@ -1,6 +1,5 @@
-#source( paste( 'C:\\Users\\', Sys.getenv("USERNAME"),'\\OneDrive - Emory University\\projects\\CAFT\\rank.aft.regularized.GS.r', sep='') )
-
-
+#' @keywords internal
+#' @noRd
 estimate.rank.aft = function(y, delta, x, Gamma=NULL, Lambda=NULL, Gamma.ginv=NULL, Lambda.ginv=NULL, b=NULL, beta=NULL,
                              test=TRUE, regularize=FALSE, tol=10^-12) {
 

@@ -197,10 +197,6 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
 
   data <- data.frame(t.star.all, delta.all)
 
-  #--------------------------
-  # unconstrained parameter estimates
-  #--------------------------
-
   if(n.cores > 1L){
 
     doParallel::registerDoParallel(core=n.cores)
@@ -316,6 +312,10 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     if (!is.matrix(est.rank.gs.pen.r)) est.rank.gs.pen.r <- matrix(est.rank.gs.pen.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
 
   }else{
+
+    #--------------------------
+    # unconstrained parameter estimates
+    #--------------------------
 
     est.rank.gs.pen <- est.rank.gs.pen.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
     colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")

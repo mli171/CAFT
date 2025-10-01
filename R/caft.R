@@ -200,11 +200,6 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
 
     doParallel::registerDoParallel(core=n.cores)
 
-    col_tstar_idx <- grep("^tstar", colnames(data))
-    col_delta_idx <- grep("^delta", colnames(data))
-    stopifnot(length(col_tstar_idx) >= n.taxa, length(col_delta_idx) >= n.taxa)
-
-    # --------- Precompute indices / sizes ----------
     col_tstar_idx  <- grep("^tstar", colnames(data))
     col_delta_idx  <- grep("^delta", colnames(data))
     stopifnot(length(col_tstar_idx) >= n.taxa, length(col_delta_idx) >= n.taxa)
@@ -249,7 +244,7 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     if (n.test==1) {
       b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
     } else {
-      b.median.pen =  ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+      b.median.pen = ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
     }
     if (n.test==n.param) Lambda=NULL
 
@@ -354,7 +349,7 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     if (n.test==1) {
       b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
     }else {
-      b.median.pen =  ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+      b.median.pen = ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
     }
     if (n.test==n.param) Lambda=NULL
 
@@ -397,7 +392,6 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
       }
     }
   }
-
 
   p.otu <- p.rank.pen
   q.otu <- p.adjust(p.otu, method = adjust.method)

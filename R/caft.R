@@ -89,9 +89,14 @@
 #'
 #' # CAFT
 #' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-#'                x.cov=data.frame(Age=Age, Gender=Gender),
-#'                filter.thresh=0.06, adjust.method="BH")
+#'                 x.cov=data.frame(Age=Age, Gender=Gender),
+#'                 filter.thresh=0.06, adjust.method="BH")
 #'
+#' # CAFT (parallel verrsion)
+#' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
+#'                 x.cov=data.frame(Age=Age, Gender=Gender),
+#'                 filter.thresh=0.06, adjust.method="BH",
+#'                 n.cores=4)
 caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL, filter.thresh = 0.05, fdr.nominal = 0.20,
                    adjust.method = "BH", n.cores=1L) {
   if (!is.matrix(otu.table)) {

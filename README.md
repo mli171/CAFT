@@ -73,12 +73,12 @@ Gender = as.numeric(factor(sample.tab$gender)) - 1
 
 # CAFT
 res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-                x.cov=data.frame(Age=Age, Gender=Gender),
+                x.adj=data.frame(Age=Age, Gender=Gender),
                 filter.thresh=0.06, adjust.method="BH")
               
 # CAFT (parallel version)
 res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-                x.cov=data.frame(Age=Age, Gender=Gender),
+                x.adj=data.frame(Age=Age, Gender=Gender),
                 filter.thresh=0.06, adjust.method="BH",
                 n.cores=2)
 ```

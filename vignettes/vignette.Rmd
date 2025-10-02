@@ -95,8 +95,15 @@ mean(cens.prop)
 
 ```{r}
 res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-                x.cov=data.frame(Age=Age, Gender=Gender),
+                x.adj=data.frame(Age=Age, Gender=Gender),
                 filter.thresh=0.06, adjust.method="BH")
+```
+
+We can also apply multicore parallel computing to speed up the computation.
+```{r, eval=FALSE}
+res.CAFT = caft(otu.table=count.tab, x.test=Disease,
+                x.adj=data.frame(Age=Age, Gender=Gender),
+                filter.thresh=0.06, adjust.method="BH", n.cores=4)
 ```
 
 Note that we can also calculate the censoring proportion (proportion of zero 

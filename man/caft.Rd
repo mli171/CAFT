@@ -7,7 +7,7 @@
 caft(
   otu.table,
   x.test = NULL,
-  x.cov = NULL,
+  x.adj = NULL,
   x = NULL,
   Gamma = NULL,
   filter.thresh = 0.05,
@@ -20,37 +20,44 @@ caft(
 \item{otu.table}{the community OTU table (or taxa count table). Each row
 corresponds to a sample and each column corresponds to one OTU (taxa).}
 
-\item{x.test}{the covariates are of interest. It can be a vector, matrix, or data
-frame. All K-level categorical variables should be converted to K-1
+\item{x.test}{the covariates are of interest. It can be a vector, matrix, or
+data frame. All K-level categorical variables should be converted to K-1
 indicator variables before input.  Use if default Gamma is desired.}
 
-\item{x.cov}{other covariates that need to be adjusted. Requirements are the
-same as \code{X.test} above.  Use if default Gamma is desired.}
+\item{x.adj}{other covariates that need to be adjusted. Requirements are the
+same as \code{x.test} above.  Use if default Gamma is desired.}
 
-\item{x}{data for all covariates.  Only used if matrix Gamma is provided as input. It can be a vector, matrix, or data
-frame. All K-level categorical variables should be converted to K-1 indicator variables before input.}
+\item{x}{data for all covariates.  Default value is \code{NULL}. Only used
+if matrix \code{Gamma} is provided as input. It can be a vector, matrix,
+or dataframe. All K-level categorical variables should be converted to K-1
+indicator variables before input.}
 
-\item{Gamma}{matrix to specify what hypothesis to test.  Not used if data are entered as X.test and X.cov.}
+\item{Gamma}{matrix to specify what hypothesis to test.  Not used if data are
+entered as \code{x.test} and \code{x.adj}.}
 
-\item{filter.thresh}{a real value between 0 and 1 for OTU table sample presence
-filtering. Any OTUs present in fewer than \code{filter.thresh} proportion
-of samples are filtered out. We set the default to be 0.05.}
+\item{filter.thresh}{a real value between 0 and 1 for OTU table sample
+presence filtering. Any OTUs present in fewer than \code{filter.thresh}
+proportion of samples are filtered out. We set the default to be 0.05.}
 
-\item{fdr.nominal}{the nominal FDR. The default is 0.2.}
+\item{fdr.nominal}{the nominal false discover rate (FDR). The default is 0.2.}
 
 \item{adjust.method}{a character string. Use multiple comparison/testing
 adjustment methods to control the family-wise error rate/false discover
-rate. Default to "BH". See \code{\link{p.adjust}} for the details.}
+rate. Default to "\code{BH}". See \code{\link{p.adjust}} for the details.}
 
-\item{n.cores}{the number of cores to be used for parallel computing. The default is 1.}
+\item{n.cores}{Integer. Number of CPU cores to use for parallel computation.
+Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
+runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
+cluster. On typical desktops/laptops, a good choice is
+\code{max(1L, parallel::detectCores() - 1L)}.}
 }
 \value{
 Return a list consisting of
 \describe{
-\item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
+\item{betahat.est}{A matrix that include the estimated coefficients by fitting
 each OTU count to the log-linear model. The number of columns should match
-the number of covairates from \code{Y} and \code{C}.}
-\item{b.median.pen}{The selected median of all betas, which was used in the
+the number of covariates from \code{x.test} and \code{x.adj}.}
+\item{betahat.median}{The selected median of all betas, which was used in the
 restricted score test of the significance of differential abundant OTU. It can
 also be used to calculated the effect size of each OTU, defined as the difference
 from the median of all betas.}
@@ -58,12 +65,15 @@ from the median of all betas.}
 \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 above}
 \item{p.otu}{p-values for individual OTU association tests}
-\item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
-adjustment method specified in \code{adjust.method}.)
-for individual OTU association tests}
+\item{df.test}{Degrees of freedom per taxon in the test.}
+\item{betahat.est.r}{Matrix of constrained (restricted) estimates from the
+restricted score test.}
 \item{p.detected.otu}{detected significantly differential abundant taxa
-(denoted by the column names of the OTU table) at the nominal FDR
-based on \code{p.otu}}
+(denoted by the column names of the OTU table) at the nominal FDR based on
+\code{p.otu}}
+\item{q.otu}{q-values comes from adjusting p-values by the Bonferroni
+correction or the adjustment method specified in \code{adjust.method}. For
+individual OTU association tests}
 \item{q.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{q.otu}}
@@ -110,7 +120,6 @@ Gender = as.numeric(factor(sample.tab$gender)) - 1
 
 # CAFT
 res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-               x.cov=data.frame(Age=Age, Gender=Gender),
-               filter.thresh=0.06, adjust.method="BH")
-
+                x.adj=data.frame(Age=Age, Gender=Gender),
+                filter.thresh=0.06, adjust.method="BH")
 }

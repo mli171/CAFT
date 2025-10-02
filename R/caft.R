@@ -11,44 +11,54 @@
 #'
 #' @param otu.table the community OTU table (or taxa count table). Each row
 #'  corresponds to a sample and each column corresponds to one OTU (taxa).
-#' @param x.test the covariates are of interest. It can be a vector, matrix, or data
-#'    frame. All K-level categorical variables should be converted to K-1
-#'    indicator variables before input.  Use if default Gamma is desired.
-#' @param x.cov other covariates that need to be adjusted. Requirements are the
-#'    same as \code{X.test} above.  Use if default Gamma is desired.
-#' @param Gamma matrix to specify what hypothesis to test.  Not used if data are entered as X.test and X.cov.
-#' @param x data for all covariates.  Only used if matrix Gamma is provided as input. It can be a vector, matrix, or data
-#'    frame. All K-level categorical variables should be converted to K-1 indicator variables before input.
-#' @param filter.thresh a real value between 0 and 1 for OTU table sample presence
-#'    filtering. Any OTUs present in fewer than \code{filter.thresh} proportion
-#'    of samples are filtered out. We set the default to be 0.05.
-#' @param fdr.nominal the nominal FDR. The default is 0.2.
+#' @param x.test the covariates are of interest. It can be a vector, matrix, or
+#'  data frame. All K-level categorical variables should be converted to K-1
+#'  indicator variables before input.  Use if default Gamma is desired.
+#' @param x.adj other covariates that need to be adjusted. Requirements are the
+#'  same as \code{x.test} above.  Use if default Gamma is desired.
+#' @param Gamma matrix to specify what hypothesis to test.  Not used if data are
+#' entered as \code{x.test} and \code{x.adj}.
+#' @param x data for all covariates.  Default value is \code{NULL}. Only used
+#'  if matrix \code{Gamma} is provided as input. It can be a vector, matrix,
+#'  or dataframe. All K-level categorical variables should be converted to K-1
+#'  indicator variables before input.
+#' @param filter.thresh a real value between 0 and 1 for OTU table sample
+#'  presence filtering. Any OTUs present in fewer than \code{filter.thresh}
+#'  proportion of samples are filtered out. We set the default to be 0.05.
+#' @param fdr.nominal the nominal false discover rate (FDR). The default is 0.2.
 #' @param adjust.method a character string. Use multiple comparison/testing
 #'  adjustment methods to control the family-wise error rate/false discover
-#'  rate. Default to "BH". See \code{\link{p.adjust}} for the details.
-#' @param n.cores the number of cores to be used for parallel computing. The default is 1.
+#'  rate. Default to "\code{BH}". See \code{\link{p.adjust}} for the details.
+#' @param n.cores Integer. Number of CPU cores to use for parallel computation.
+#'  Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
+#'  runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
+#'  cluster. On typical desktops/laptops, a good choice is
+#'  \code{max(1L, parallel::detectCores() - 1L)}.
 #' @return Return a list consisting of
 #' \describe{
-#' \item{est.rank.gs.pen}{A matrix that include the estimated coefficients by fitting
-#' each OTU count to the log-linear model. The number of columns should match
-#' the number of covairates from \code{Y} and \code{C}.}
-#' \item{b.median.pen}{The selected median of all betas, which was used in the
-#' restricted score test of the significance of differential abundant OTU. It can
-#' also be used to calculated the effect size of each OTU, defined as the difference
-#' from the median of all betas.}
+#' \item{betahat.est}{A matrix that include the estimated coefficients by fitting
+#'  each OTU count to the log-linear model. The number of columns should match
+#'  the number of covariates from \code{x.test} and \code{x.adj}.}
+#' \item{betahat.median}{The selected median of all betas, which was used in the
+#'  restricted score test of the significance of differential abundant OTU. It can
+#'  also be used to calculated the effect size of each OTU, defined as the difference
+#'  from the median of all betas.}
 #' \item{test.rank}{test statistics from the proposed score test}
 #' \item{skip.otu}{the names of skipped OTU during taxa presence filtering
-#'          above}
+#'  above}
 #' \item{p.otu}{p-values for individual OTU association tests}
-#' \item{q.otu}{q-values (adjusted p-values by the Bonferroni correction or the
-#'    adjustment method specified in \code{adjust.method}.)
-#'          for individual OTU association tests}
+#' \item{df.test}{Degrees of freedom per taxon in the test.}
+#' \item{betahat.est.r}{Matrix of constrained (restricted) estimates from the
+#'  restricted score test.}
 #' \item{p.detected.otu}{detected significantly differential abundant taxa
-#'          (denoted by the column names of the OTU table) at the nominal FDR
-#'          based on \code{p.otu}}
+#'  (denoted by the column names of the OTU table) at the nominal FDR based on
+#'  \code{p.otu}}
+#' \item{q.otu}{q-values comes from adjusting p-values by the Bonferroni
+#'  correction or the adjustment method specified in \code{adjust.method}. For
+#'  individual OTU association tests}
 #' \item{q.detected.otu}{detected significantly differential abundant taxa
-#'          (denoted by the column names of the OTU table) at the nominal FDR
-#'          based on \code{q.otu}}
+#'  (denoted by the column names of the OTU table) at the nominal FDR
+#'  based on \code{q.otu}}
 #'}
 #' @import stats
 #' @import graphics
@@ -89,27 +99,22 @@
 #'
 #' # CAFT
 #' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-#'                 x.cov=data.frame(Age=Age, Gender=Gender),
+#'                 x.adj=data.frame(Age=Age, Gender=Gender),
 #'                 filter.thresh=0.06, adjust.method="BH")
-#'
-#' # CAFT (parallel version)
-#' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-#'                 x.cov=data.frame(Age=Age, Gender=Gender),
-#'                 filter.thresh=0.06, adjust.method="BH",
-#'                 n.cores=4)
-caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL, filter.thresh = 0.05, fdr.nominal = 0.20,
-                   adjust.method = "BH", n.cores=1L) {
+caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
+                 filter.thresh = 0.05, fdr.nominal = 0.20, adjust.method = "BH",
+                 n.cores=1L) {
   if (!is.matrix(otu.table)) {
     otu.table <- as.matrix(otu.table)
   }
   if (is.null(x) & is.null(x.test)) {
-    stop("No data provided: Either x or x.test (and possibly x.cov) required")
+    stop("No data provided: Either x or x.test (and possibly x.adj) required")
   }
   if (!is.null(x) & !is.null(x.test)) {
     stop("Only one of x or x.test can be specified, not both")
   }
   if (is.null(x)) {
-    x <- cbind(x.test, x.cov)
+    x <- cbind(x.test, x.adj)
   }
   if (!is.matrix(x)) {
     x <- as.matrix(x)
@@ -120,7 +125,7 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
   }
   if (!is.null(Gamma)) {
     if (is.null(x)) {
-      stop("Gamma should not be specified if x.test (and possibly x.cov) is specified")
+      stop("Gamma should not be specified if x.test (and possibly x.adj) is specified")
     }
     if (!("matrix" %in% class(Gamma))) Gamma <- matrix(Gamma, nrow = 1)
     Gamma.rank <- qr(Gamma)$rank
@@ -199,7 +204,7 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
 
   if(n.cores > 1L){
 
-    doParallel::registerDoParallel(core=n.cores)
+    doParallel::registerDoParallel(cores=n.cores)
 
     col_tstar_idx  <- grep("^tstar", colnames(data))
     col_delta_idx  <- grep("^delta", colnames(data))
@@ -237,15 +242,15 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
       }
     }
 
-    est.rank.gs.pen <- do.call(rbind, lapply(res_phase1, `[[`, "beta"))
-    colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")
+    betahat.est <- do.call(rbind, lapply(res_phase1, `[[`, "beta"))
+    colnames(betahat.est) <- paste0("b", 1:NCOL(x), ".est")
     skip.rare <- vapply(res_phase1, function(z) z$skip_rare, integer(1))
     skip.fail.rank.fit.pen <- vapply(res_phase1, function(z) z$skip_fail_fit, integer(1))
 
     if (n.test==1) {
-      b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
+      betahat.median = median( as.matrix(betahat.est) %*% t(Gamma), na.rm = T)
     } else {
-      b.median.pen = ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+      betahat.median = ICSNP::HR.Mest(as.matrix(betahat.est) %*% t(Gamma), na.action=na.omit)$center
     }
     if (n.test==n.param) Lambda=NULL
 
@@ -269,7 +274,7 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
         y = tstar, delta = delta.1, x = x,
         Gamma = Gamma, Lambda = Lambda,
         Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-        b = b.median.pen, beta = NULL,
+        b = betahat.median, beta = NULL,
         test = TRUE, regularize = TRUE, tol = 1e-12
       ), silent = TRUE)
 
@@ -303,13 +308,13 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     }
 
     p.rank.pen            <- vapply(res_phase2, function(z) z$p,    numeric(1))
-    test.rank.pen         <- vapply(res_phase2, function(z) z$test, numeric(1))
+    test.rank             <- vapply(res_phase2, function(z) z$test, numeric(1))
     df.rank.pen           <- vapply(res_phase2, function(z) z$df,   numeric(1))
     skip.fail.rank.test.pen <- vapply(res_phase2, function(z) z$skip_fail_test, integer(1))
-    test.rank.pen.norm <- do.call(rbind, lapply(res_phase2, `[[`, "z"))
-    if (!is.matrix(test.rank.pen.norm)) test.rank.pen.norm <- matrix(test.rank.pen.norm, nrow = n.taxa, ncol = n.test, byrow = TRUE)
-    est.rank.gs.pen.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
-    if (!is.matrix(est.rank.gs.pen.r)) est.rank.gs.pen.r <- matrix(est.rank.gs.pen.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
+    test.rank.norm        <- do.call(rbind, lapply(res_phase2, `[[`, "z"))
+    if (!is.matrix(test.rank.norm)) test.rank.norm <- matrix(test.rank.norm, nrow = n.taxa, ncol = n.test, byrow = TRUE)
+    betahat.est.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
+    if (!is.matrix(betahat.est.r)) betahat.est.r <- matrix(betahat.est.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
 
   }else{
 
@@ -317,8 +322,8 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     # unconstrained parameter estimates
     #--------------------------
 
-    est.rank.gs.pen <- est.rank.gs.pen.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
-    colnames(est.rank.gs.pen) <- paste0("b", 1:NCOL(x), ".est")
+    betahat.est <- betahat.est.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
+    colnames(betahat.est) <- paste0("b", 1:NCOL(x), ".est")
 
     skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
     skip.fail.rank.fit.pen <- rep(0, n.taxa)
@@ -339,10 +344,10 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
           tol = 10^-12
         ))
         if (inherits(fit0.pen, "try-error")) {
-          est.rank.gs.pen[ii, ] <- rep(NA, NCOL(x))
+          betahat.est[ii, ] <- rep(NA, NCOL(x))
           skip.fail.rank.fit.pen[ii] <- 1
         } else {
-          est.rank.gs.pen[ii, ] <- fit0.pen$beta
+          betahat.est[ii, ] <- fit0.pen$beta
         }
       }
     }
@@ -352,14 +357,14 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
     #--------------------------
 
     if (n.test==1) {
-      b.median.pen = median( as.matrix(est.rank.gs.pen) %*% t(Gamma), na.rm = T)
+      betahat.median = median( as.matrix(betahat.est) %*% t(Gamma), na.rm = T)
     }else {
-      b.median.pen = ICSNP::HR.Mest(as.matrix(est.rank.gs.pen) %*% t(Gamma), na.action=na.omit)$center
+      betahat.median = ICSNP::HR.Mest(as.matrix(betahat.est) %*% t(Gamma), na.action=na.omit)$center
     }
     if (n.test==n.param) Lambda=NULL
 
-    test.rank.pen <- df.rank.pen <- rep(NA, n.taxa)
-    test.rank.pen.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
+    test.rank <- df.rank.pen <- rep(NA, n.taxa)
+    test.rank.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
     p.rank.pen <- rep(NA, n.taxa)
     skip.fail.rank.test.pen <- rep(NA, n.taxa)
     for (ii in 1:n.taxa) {
@@ -370,28 +375,28 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
           y = tstar, delta = delta.1, x = x,
           Gamma = Gamma, Lambda = Lambda,
           Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-          b = b.median.pen,
+          b = betahat.median,
           beta = NULL, test = TRUE,
           regularize = T, tol = 10^-12
         ))
         if (inherits(res.pen, "try-error")) {
           p.rank.pen[ii] <- NA
-          test.rank.pen[ii] <- NA
-          test.rank.pen.norm[ii, ] <- NA
+          test.rank[ii] <- NA
+          test.rank.norm[ii, ] <- NA
           skip.fail.rank.test.pen[ii] <- 1
         } else {
           temp.rank <- try(test.rank.aft(res.pen, score = "rank"))
           if (inherits(temp.rank, "try-error")) {
             p.rank.pen[ii] <- NA
-            test.rank.pen.norm[ii, ] <- NA
-            test.rank.pen[ii] <- NA
+            test.rank.norm[ii, ] <- NA
+            test.rank[ii] <- NA
             skip.fail.rank.test.pen[ii] <- 1
           } else {
             p.rank.pen[ii] <- temp.rank$p.value
-            test.rank.pen[ii] <- temp.rank$test
-            test.rank.pen.norm[ii, ] <- temp.rank$z.score
+            test.rank[ii] <- temp.rank$test
+            test.rank.norm[ii, ] <- temp.rank$z.score
             df.rank.pen[ii] <- temp.rank$df
-            est.rank.gs.pen.r[ii, ] <- res.pen$beta.r
+            betahat.est.r[ii, ] <- res.pen$beta.r
           }
         }
       }
@@ -401,13 +406,13 @@ caft <- function(otu.table, x.test = NULL, x.cov = NULL, x = NULL, Gamma = NULL,
   p.otu <- p.rank.pen
   q.otu <- p.adjust(p.otu, method = adjust.method)
   return(list(
-    est.rank.gs.pen = est.rank.gs.pen,
-    b.median.pen = b.median.pen,
-    test.rank = test.rank.pen,
+    betahat.est = betahat.est,
+    betahat.median = betahat.median,
+    test.rank = test.rank,
     skip.otu = skip.rare,
     p.otu = p.otu,
     df.test = df.rank.pen,
-    est.rank.gs.pen.r = est.rank.gs.pen.r,
+    betahat.est.r = betahat.est.r,
     p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
     q.otu = q.otu,
     q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]

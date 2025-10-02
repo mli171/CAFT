@@ -1,6 +1,4 @@
-# CAFT
-
-## Rank-Based Compositional Analysis using Log-Linear Models for Microbiome Data with Zero Cells.
+# CAFT: Rank-Based Compositional Analysis using Log-Linear Models for Microbiome Data with Zero Cells.
 Authors: Glen Satten (GSatten@emory.edu), Mo Li (mo.li@louisiana.edu), Ni Zhao (nzhao10@jhu.edu)
 ---
 

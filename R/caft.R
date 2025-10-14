@@ -29,6 +29,11 @@
 #' @param adjust.method a character string. Use multiple comparison/testing
 #'  adjustment methods to control the family-wise error rate/false discover
 #'  rate. Default to "\code{BH}". See \code{\link{p.adjust}} for the details.
+#' @param regularize a logical value. If TRUE, adds a small penalty to the
+#'   rank-based score to stabilize estimation and reduce small-sample
+#'   bias.  Use this when the unpenalized rank equations have flat directions,
+#'   there is near-separation, heavy censoring/ties, or the optimizer fails
+#'   to converge. Default is TRUE.
 #' @param n.cores Integer. Number of CPU cores to use for parallel computation.
 #'  Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
 #'  runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
@@ -103,7 +108,7 @@
 #'                 filter.thresh=0.06, adjust.method="BH")
 caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
                  filter.thresh = 0.05, fdr.nominal = 0.20, adjust.method = "BH",
-                 n.cores=1L) {
+                 regularize=TRUE, n.cores=1L) {
   if (!is.matrix(otu.table)) {
     otu.table <- as.matrix(otu.table)
   }
@@ -232,7 +237,7 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
         Gamma = NULL, Lambda = diag(n.param),
         Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
         b = NULL, beta = NULL,
-        test = TRUE, regularize = TRUE, tol = 1e-12
+        test = TRUE, regularize = regularize, tol = 1e-12
       ), silent = TRUE)
 
       if (inherits(fit0.pen, "try-error")) {
@@ -275,7 +280,7 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
         Gamma = Gamma, Lambda = Lambda,
         Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
         b = betahat.median, beta = NULL,
-        test = TRUE, regularize = TRUE, tol = 1e-12
+        test = TRUE, regularize = regularize, tol = 1e-12
       ), silent = TRUE)
 
       if (inherits(res.pen, "try-error")) {
@@ -340,7 +345,7 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
           Gamma = NULL, Lambda = diag(n.param),
           Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
           b = NULL, beta = NULL,
-          test = TRUE, regularize = T,
+          test = TRUE, regularize = regularize,
           tol = 10^-12
         ))
         if (inherits(fit0.pen, "try-error")) {
@@ -377,7 +382,7 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
           Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
           b = betahat.median,
           beta = NULL, test = TRUE,
-          regularize = T, tol = 10^-12
+          regularize = regularize, tol = 10^-12
         ))
         if (inherits(res.pen, "try-error")) {
           p.rank.pen[ii] <- NA

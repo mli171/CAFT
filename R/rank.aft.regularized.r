@@ -40,7 +40,7 @@ estimate.rank.aft = function(y, delta, x, Gamma=NULL, Lambda=NULL, Gamma.ginv=NU
 
 
   if (n.lambda==0) {
-    beta.r=as.vector( t(Gamma) %*% b )
+    beta.r=as.vector( Gamma.ginv %*% b )
     res=list(beta=NULL, beta.r=beta.r, n.gamma=n.gamma, n.lambda=n.lambda,
              Gamma=Gamma, Lambda=Lambda, Gamma.ginv=Gamma.ginv, Lambda.ginv=Lambda.ginv,
              b=b, y=y, x=x, delta=delta,regularize=regularize)

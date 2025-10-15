@@ -41,19 +41,19 @@
 #'  \code{max(1L, parallel::detectCores() - 1L)}.
 #' @return Return a list consisting of
 #' \describe{
-#' \item{betahat.est}{A matrix that include the estimated coefficients by fitting
+#' \item{beta.est}{A matrix that include the estimated coefficients by fitting
 #'  each OTU count to the log-linear model. The number of columns should match
 #'  the number of covariates from \code{x.test} and \code{x.adj}.}
 #' \item{betahat.median}{The selected median of all betas, which was used in the
 #'  restricted score test of the significance of differential abundant OTU. It can
 #'  also be used to calculated the effect size of each OTU, defined as the difference
 #'  from the median of all betas.}
-#' \item{test.rank}{test statistics from the proposed score test}
+#' \item{rank.teststat}{test statistics from the proposed score test}
 #' \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 #'  above}
 #' \item{p.otu}{p-values for individual OTU association tests}
 #' \item{df.test}{Degrees of freedom per taxon in the test.}
-#' \item{betahat.est.r}{Matrix of constrained (restricted) estimates from the
+#' \item{beta.est.r}{Matrix of constrained (restricted) estimates from the
 #'  restricted score test.}
 #' \item{p.detected.otu}{detected significantly differential abundant taxa
 #'  (denoted by the column names of the OTU table) at the nominal FDR based on
@@ -247,15 +247,15 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
       }
     }
 
-    betahat.est <- do.call(rbind, lapply(res_phase1, `[[`, "beta"))
-    colnames(betahat.est) <- paste0("b", 1:NCOL(x), ".est")
+    beta.est <- do.call(rbind, lapply(res_phase1, `[[`, "beta"))
+    colnames(beta.est) <- paste0("b", 1:NCOL(x), ".est")
     skip.rare <- vapply(res_phase1, function(z) z$skip_rare, integer(1))
     skip.fail.rank.fit.pen <- vapply(res_phase1, function(z) z$skip_fail_fit, integer(1))
 
     if (n.test==1) {
-      betahat.median = median( as.matrix(betahat.est) %*% t(Gamma), na.rm = T)
+      betahat.median = median( as.matrix(beta.est) %*% t(Gamma), na.rm = T)
     } else {
-      betahat.median = ICSNP::HR.Mest(as.matrix(betahat.est) %*% t(Gamma), na.action=na.omit)$center
+      betahat.median = ICSNP::HR.Mest(as.matrix(beta.est) %*% t(Gamma), na.action=na.omit)$center
     }
     if (n.test==n.param) Lambda=NULL
 
@@ -313,13 +313,13 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
     }
 
     p.rank.pen            <- vapply(res_phase2, function(z) z$p,    numeric(1))
-    test.rank             <- vapply(res_phase2, function(z) z$test, numeric(1))
+    rank.teststat             <- vapply(res_phase2, function(z) z$test, numeric(1))
     df.rank.pen           <- vapply(res_phase2, function(z) z$df,   numeric(1))
     skip.fail.rank.test.pen <- vapply(res_phase2, function(z) z$skip_fail_test, integer(1))
-    test.rank.norm        <- do.call(rbind, lapply(res_phase2, `[[`, "z"))
-    if (!is.matrix(test.rank.norm)) test.rank.norm <- matrix(test.rank.norm, nrow = n.taxa, ncol = n.test, byrow = TRUE)
-    betahat.est.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
-    if (!is.matrix(betahat.est.r)) betahat.est.r <- matrix(betahat.est.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
+    rank.teststat.norm        <- do.call(rbind, lapply(res_phase2, `[[`, "z"))
+    if (!is.matrix(rank.teststat.norm)) rank.teststat.norm <- matrix(rank.teststat.norm, nrow = n.taxa, ncol = n.test, byrow = TRUE)
+    beta.est.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
+    if (!is.matrix(beta.est.r)) beta.est.r <- matrix(beta.est.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
 
   }else{
 
@@ -327,8 +327,8 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
     # unconstrained parameter estimates
     #--------------------------
 
-    betahat.est <- betahat.est.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
-    colnames(betahat.est) <- paste0("b", 1:NCOL(x), ".est")
+    beta.est <- beta.est.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
+    colnames(beta.est) <- paste0("b", 1:NCOL(x), ".est")
 
     skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
     skip.fail.rank.fit.pen <- rep(0, n.taxa)
@@ -349,10 +349,10 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
           tol = 10^-12
         ))
         if (inherits(fit0.pen, "try-error")) {
-          betahat.est[ii, ] <- rep(NA, NCOL(x))
+          beta.est[ii, ] <- rep(NA, NCOL(x))
           skip.fail.rank.fit.pen[ii] <- 1
         } else {
-          betahat.est[ii, ] <- fit0.pen$beta
+          beta.est[ii, ] <- fit0.pen$beta
         }
       }
     }
@@ -362,14 +362,14 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
     #--------------------------
 
     if (n.test==1) {
-      betahat.median = median( as.matrix(betahat.est) %*% t(Gamma), na.rm = T)
+      betahat.median = median( as.matrix(beta.est) %*% t(Gamma), na.rm = T)
     }else {
-      betahat.median = ICSNP::HR.Mest(as.matrix(betahat.est) %*% t(Gamma), na.action=na.omit)$center
+      betahat.median = ICSNP::HR.Mest(as.matrix(beta.est) %*% t(Gamma), na.action=na.omit)$center
     }
     if (n.test==n.param) Lambda=NULL
 
-    test.rank <- df.rank.pen <- rep(NA, n.taxa)
-    test.rank.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
+    rank.teststat <- df.rank.pen <- rep(NA, n.taxa)
+    rank.teststat.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
     p.rank.pen <- rep(NA, n.taxa)
     skip.fail.rank.test.pen <- rep(NA, n.taxa)
     for (ii in 1:n.taxa) {
@@ -386,22 +386,22 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
         ))
         if (inherits(res.pen, "try-error")) {
           p.rank.pen[ii] <- NA
-          test.rank[ii] <- NA
-          test.rank.norm[ii, ] <- NA
+          rank.teststat[ii] <- NA
+          rank.teststat.norm[ii, ] <- NA
           skip.fail.rank.test.pen[ii] <- 1
         } else {
           temp.rank <- try(test.rank.aft(res.pen, score = "rank"))
           if (inherits(temp.rank, "try-error")) {
             p.rank.pen[ii] <- NA
-            test.rank.norm[ii, ] <- NA
-            test.rank[ii] <- NA
+            rank.teststat.norm[ii, ] <- NA
+            rank.teststat[ii] <- NA
             skip.fail.rank.test.pen[ii] <- 1
           } else {
             p.rank.pen[ii] <- temp.rank$p.value
-            test.rank[ii] <- temp.rank$test
-            test.rank.norm[ii, ] <- temp.rank$z.score
+            rank.teststat[ii] <- temp.rank$test
+            rank.teststat.norm[ii, ] <- temp.rank$z.score
             df.rank.pen[ii] <- temp.rank$df
-            betahat.est.r[ii, ] <- res.pen$beta.r
+            beta.est.r[ii, ] <- res.pen$beta.r
           }
         }
       }
@@ -411,13 +411,14 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
   p.otu <- p.rank.pen
   q.otu <- p.adjust(p.otu, method = adjust.method)
   return(list(
-    betahat.est = betahat.est,
+    beta.est = beta.est,
     betahat.median = betahat.median,
-    test.rank = test.rank,
+    rank.teststat = rank.teststat,
+    rank.teststat.norm = rank.teststat.norm,
     skip.otu = skip.rare,
     p.otu = p.otu,
     df.test = df.rank.pen,
-    betahat.est.r = betahat.est.r,
+    beta.est.r = beta.est.r,
     p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
     q.otu = q.otu,
     q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]

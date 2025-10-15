@@ -54,7 +54,7 @@
 #'   (columns, in the order of \code{Gamma}'s rows). Under the null, entries are
 #'   approximately \eqn{N(0,1)}; larger absolute values indicate stronger
 #'   evidence against the null. Though the per-taxon p-values used for FDR control
-#'   already be provided through \code{rank.teststat} and \code{p.otu}}.
+#'   already be provided through \code{rank.teststat} and \code{p.otu}.}
 #' \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 #'  above}
 #' \item{p.otu}{p-values for individual OTU association tests}

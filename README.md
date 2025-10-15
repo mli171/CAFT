@@ -19,8 +19,8 @@ empirical null distribution to achieve better FDR control.
 You can install the version of CAFT from Github:
 
 ```{r}
-# install.packages("devtools")
-devtools::install_github("mli171/CAFT")
+# install.packages("remotes")
+remotes::install_github("mli171/CAFT", build_vignettes = TRUE, dependencies = TRUE)
 ```
 
 ## Open the Vignette in R

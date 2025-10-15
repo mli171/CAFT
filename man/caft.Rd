@@ -13,6 +13,7 @@ caft(
   filter.thresh = 0.05,
   fdr.nominal = 0.2,
   adjust.method = "BH",
+  regularize = TRUE,
   n.cores = 1L
 )
 }
@@ -45,6 +46,12 @@ proportion of samples are filtered out. We set the default to be 0.05.}
 adjustment methods to control the family-wise error rate/false discover
 rate. Default to "\code{BH}". See \code{\link{p.adjust}} for the details.}
 
+\item{regularize}{a logical value. If TRUE, adds a small penalty to the
+rank-based score to stabilize estimation and reduce small-sample
+bias.  Use this when the unpenalized rank equations have flat directions,
+there is near-separation, heavy censoring/ties, or the optimizer fails
+to converge. Default is TRUE.}
+
 \item{n.cores}{Integer. Number of CPU cores to use for parallel computation.
 Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
 runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
@@ -54,19 +61,25 @@ cluster. On typical desktops/laptops, a good choice is
 \value{
 Return a list consisting of
 \describe{
-\item{betahat.est}{A matrix that include the estimated coefficients by fitting
+\item{beta.est}{A matrix that include the estimated coefficients by fitting
 each OTU count to the log-linear model. The number of columns should match
 the number of covariates from \code{x.test} and \code{x.adj}.}
 \item{betahat.median}{The selected median of all betas, which was used in the
 restricted score test of the significance of differential abundant OTU. It can
 also be used to calculated the effect size of each OTU, defined as the difference
 from the median of all betas.}
-\item{test.rank}{test statistics from the proposed score test}
+\item{rank.teststat}{test statistics from the proposed score test}
+\item{rank.teststat.norm}{Numeric matrix with the normalized (z-score)
+rank-based test statistics for each taxon (rows) and each tested contrast
+(columns, in the order of \code{Gamma}'s rows). Under the null, entries are
+approximately \eqn{N(0,1)}; larger absolute values indicate stronger
+evidence against the null. Though the per-taxon p-values used for FDR control
+already be provided through \code{rank.teststat} and \code{p.otu}}.
 \item{skip.otu}{the names of skipped OTU during taxa presence filtering
 above}
 \item{p.otu}{p-values for individual OTU association tests}
 \item{df.test}{Degrees of freedom per taxon in the test.}
-\item{betahat.est.r}{Matrix of constrained (restricted) estimates from the
+\item{beta.est.r}{Matrix of constrained (restricted) estimates from the
 restricted score test.}
 \item{p.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR based on

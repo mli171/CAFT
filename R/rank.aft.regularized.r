@@ -4,36 +4,6 @@ estimate.rank.aft = function(y, delta, x, Gamma=NULL, Lambda=NULL, Gamma.ginv=NU
                              test=TRUE, regularize=FALSE, tol=10^-12) {
 
   n.data=length(y)
-  #	if ('data.frame' %in% class(x) ) x=as.matrix(x)
-  #	if( !('matrix' %in% class(x)) ) x=matrix(x, ncol=1)
-  #	if (!is.null(Gamma)) {
-  #	  if( !('matrix' %in% class(Gamma)) ) Gamma=matrix(Gamma,nrow=1)
-  #		if (ncol(Gamma)!=ncol(x)) {
-  #		   print('Error:  Gamma and X must have the same number of columns')
-  #		   return()
-  #		}
-  #	}
-
-  #	if (is.null(b) & !is.null(Gamma) ) {
-  #		print('Error:  both Gamma and b must be specified for single-taxon
-  #		      constrained analysis')
-  #		return()
-  #	}
-
-  #
-  #   center x and y
-  #
-  #	y=y-mean(y)
-  #	x=x-rep( colMeans(x), each=n.data )
-
-  #	setup.res=setup(Gamma=Gamma, Lambda=Lambda, x=x, b=b, tol=tol)
-  #	Gamma=setup.res$Gamma
-  #	Lambda=setup.res$Lambda
-  #	n.gamma=setup.res$n.gamma
-  #	n.lambda=setup.res$n.lambda
-
-  #	x=setup.res$x
-  #	b=setup.res$b
   n.var=ncol(x)
   n.gamma=ifelse(is.null(Gamma),0,nrow(Gamma))
   n.lambda=ifelse(is.null(Lambda),0,nrow(Lambda))
@@ -96,51 +66,6 @@ estimate.rank.aft = function(y, delta, x, Gamma=NULL, Lambda=NULL, Gamma.ginv=NU
 
   return(res)
 }
-
-
-
-
-#' @keywords internal
-#' @noRd
-setup = function(Gamma, Lambda, x, b, tol=tol) {
-
-  n.var=ncol(x)
-
-  # assign Lambda=Diag(n.var) if Gamma not specified;
-  #   else convert Gamma to matrix if necessary and calculate
-  #   orthogonal Gamma and Lambda matrices
-
-
-  if (is.null(Gamma)) {
-    Lambda=diag(n.var)
-    n.gamma=0
-    n.lambda=n.var
-  }else{
-    if( !('matrix' %in% class(Gamma) ) ) {
-      Gamma=matrix(Gamma,nrow=1)
-    }
-    proj=t(Gamma)%*%Gamma
-    proj.eigen=eigen(proj)
-    use.gamma=( abs(proj.eigen$values)>tol )
-    use.lambda=!use.gamma
-    n.gamma=sum(use.gamma)
-    n.lambda=sum(use.lambda)
-    R= proj.eigen$vectors[,use.gamma]
-    L.D=Gamma %*% R
-    Gamma=t(R)
-    if (n.lambda>0) Lambda=t( proj.eigen$vectors[,use.lambda] )
-    b=solve(L.D,b)
-  }
-  res=list(Gamma=Gamma, Lambda=Lambda, x=x, n.gamma=n.gamma,
-           n.lambda=n.lambda, b=b)
-  return(res)
-}
-
-
-
-
-
-
 
 
 #' @keywords internal

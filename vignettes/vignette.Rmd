@@ -192,11 +192,11 @@ We can also implement multi-threads parallel computing to speed up the computati
 res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=4)
 ```
 
-If `x.test` and `x.adj` are set to NULL and `x` from the function has been specified, we can also set-up appropriate contrast matrix for 'Gamma' to test specified linear hypothesis.
+If `x.test` and `x.adj` are set to NULL, we specified all the covariates together in `x`, we can also set-up appropriate contrast matrix for 'Gamma' to test specified linear hypothesis.
 
 If the relative abundance for taxa $j$ in sample $i$ $\widehat{\pi}_{ij}>0$, we define $\tau_{ij}=-\log( \widehat{\pi}_{ij} )$. If $\widehat{\pi}_{ij} = 0$ that is associated with zero count cell, $\tau_{ij}= \log(N_i)$ with censoring. The corresponding AFT model can be written as
 $$\tau_{ij}=\gamma_{j}  - x_{i,CRC}\beta_{j,CRC} - x_{i,adenoma}\beta_{j,adenoma} - x_{i,Age}\beta_{j,Age} - x_{i,Gender}\beta_{j,Gender}  + \alpha_{i} + \epsilon_{ij} ~,$$
-where $x_{i,\cdot}$'s are the covariates from above and $\beta_{j,\cdot}$'s are the corresponding regression parameters.  The term $\alpha_{i}$ plays the role of a normalization constant, $\gamma_{j}$ is a taxon-specific intercept and $\epsilon_{ij}$ is residual error. Other details can be found in the manuscript.
+where $x_{i,\cdot}$'s are the covariates from above and $\beta_{j,\cdot}$'s are the corresponding regression parameters.  The term $\alpha_{i}$ plays the role of a normalization constant, $\gamma_{j}$ is a taxon-specific intercept, and $\epsilon_{ij}$ is residual error. Other details can be found in the manuscript.
 
 - One degree of freedom test on $H_{0}: \beta_{j,CRC}=\beta_{j,adenoma}$, which is saying that the taxon $j$ is equally differential abundant across the CRC and the adenoma groups.
 

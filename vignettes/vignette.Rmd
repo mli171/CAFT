@@ -110,7 +110,7 @@ res.CAFT$q.detected.otu
 
 Setting the grouping label of each sample, we can obtain a ggplot2-based boxplot showing the relative abundance of a specified OTU using the function `otuboxplot()` in our **CAFT** package.
 
-```{r}
+```{r, fig.width=7, fig.height=5, out.width="80%", fig.align='center'}
 groups = interaction(x.test, x.adj, sep = "_", drop = TRUE)
 groups = factor(groups,
                 labels = c("Non-Smoker\nMale", "Smoker\nMale",

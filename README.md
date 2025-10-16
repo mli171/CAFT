@@ -23,7 +23,7 @@ You can install the version of CAFT from Github:
 remotes::install_github("mli171/CAFT", build_vignettes = TRUE, dependencies = TRUE)
 ```
 
-## Open the Vignette in R
+## Open the Vignette in R for more details
 
 ```{r}
 browseVignettes("CAFT")
@@ -52,6 +52,13 @@ count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
 sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
 tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
 
+pNA = which(is.na(sample.tab$age))
+if(length(pNA) > 0){
+  count.tab = count.tab[-pNA, ]
+  sample.tab = sample.tab[-pNA,]
+}
+# No missing values from gender
+
 p = sample.tab$study_name %in% "WirbelJ_2018"
 sample.tab = sample.tab[p,]
 count.tab = count.tab[p, ]
@@ -63,24 +70,23 @@ count.tab = count.tab[-pNA, ]
 }
 
 ### otu presence filtering
+
 p_otu = which(rowSums(t(count.tab) > 0) > 1)
 count.tab = count.tab[,p_otu]
 tax.tab = tax.tab[p_otu,]
+Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
+Disease1[sample.tab$disease == "CRC"] = 1
+Disease2[sample.tab$disease == "adenoma"] = 1
 
-Disease = as.numeric(factor(sample.tab$disease, levels = c("healthy", "CRC"))) - 1
 Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
 
-# CAFT
-res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-                x.adj=data.frame(Age=Age, Gender=Gender),
-                filter.thresh=0.06, adjust.method="BH")
+x.test = cbind(Disease1, Disease2)
+x.adj  = cbind(Age, Gender)
+res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
               
 # CAFT (parallel version)
-res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-                x.adj=data.frame(Age=Age, Gender=Gender),
-                filter.thresh=0.06, adjust.method="BH",
-                n.cores=2)
+res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
 ```
 
 ## References

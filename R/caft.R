@@ -85,8 +85,6 @@
 #'
 #' library(phyloseq)
 #'
-#' data(Colon)
-#'
 #' count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
 #' sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
 #' tax.tab = as.data.frame(as.matrix(tax_table(Colon)))

@@ -70,7 +70,6 @@ count.tab = count.tab[-pNA, ]
 }
 
 ### otu presence filtering
-
 p_otu = which(rowSums(t(count.tab) > 0) > 1)
 count.tab = count.tab[,p_otu]
 tax.tab = tax.tab[p_otu,]

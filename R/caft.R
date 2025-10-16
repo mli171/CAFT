@@ -85,33 +85,33 @@
 #'
 #' library(phyloseq)
 #'
+#' data(Colon)
+#'
 #' count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
 #' sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
 #' tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
 #'
-#' p = sample.tab$study_name %in% "WirbelJ_2018"
-#' sample.tab = sample.tab[p,]
-#' count.tab = count.tab[p, ]
-#'
 #' pNA = which(is.na(sample.tab$age))
 #' if(length(pNA) > 0){
-#' count.tab = count.tab[-pNA, ]
+#'   count.tab = count.tab[-pNA, ]
 #'   sample.tab = sample.tab[-pNA,]
 #' }
+#' # No missing values from gender
 #'
-#' ### otu presence filtering
+#' ## otu presence filtering
 #' p_otu = which(rowSums(t(count.tab) > 0) > 1)
 #' count.tab = count.tab[,p_otu]
 #' tax.tab = tax.tab[p_otu,]
+#' Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
+#' Disease1[sample.tab$disease == "CRC"] = 1
+#' Disease2[sample.tab$disease == "adenoma"] = 1
 #'
-#' Disease = as.numeric(factor(sample.tab$disease, levels = c("healthy", "CRC"))) - 1
 #' Age = as.numeric(sample.tab$age)
 #' Gender = as.numeric(factor(sample.tab$gender)) - 1
 #'
-#' # CAFT
-#' res.CAFT = caft(otu.table=count.tab, x.test=Disease,
-#'                 x.adj=data.frame(Age=Age, Gender=Gender),
-#'                 filter.thresh=0.06, adjust.method="BH")
+#' x.test = cbind(Disease1, Disease2)
+#' x.adj  = cbind(Age, Gender)
+#' res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
 caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
                  filter.thresh = 0.05, fdr.nominal = 0.20, adjust.method = "BH",
                  regularize=TRUE, n.cores=1L) {

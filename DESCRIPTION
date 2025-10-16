@@ -21,5 +21,6 @@ Suggests:
     testthat (>= 3.0.0)
 Encoding: UTF-8
 LazyData: true
+LazyDataCompression: bzip2
 VignetteBuilder: knitr
 Config/testthat/edition: 3

@@ -71,7 +71,7 @@ caft(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
 
 ## Example data sets illustration
 
-To illustrate the package usage, we used two filtered data sets, `URT` originally from [1] and obtained from R package **LOCOM** [2] and `Colon` from R package **curatedMetagenomicData** [1] (The **curatedMetagenomicData** package installation is required through **Bioconductor**. ). The processed microbiome data sets can be loaded directly from **CAFT** package.
+To illustrate the package usage, we used two filtered data sets, `URT` originally from [1] and obtained from R package **LOCOM** [2] and `Colon` from R package **curatedMetagenomicData** [3] (The **curatedMetagenomicData** package installation is required through **Bioconductor**. ). The processed microbiome data sets can be loaded directly from **CAFT** package.
 
 ### Binary outcome phenotypes example
 

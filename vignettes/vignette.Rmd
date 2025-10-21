@@ -125,7 +125,7 @@ otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter,
 
 ### Multicategory outcome phenotypes example
 
-This `Colon` data were modified through package **curatedMetagenomicData** on Bioconductor by subsetting samples. Specifically, we retained only adult participants, stool specimens, and samples with disease status labeled as colorectal cancer (CRC), adenoma, or healthy.
+This `Colon` data were modified through package **curatedMetagenomicData** [3] on Bioconductor by subsetting samples. Specifically, we retained only adult participants, stool specimens, and samples with disease status labeled as colorectal cancer (CRC), adenoma, or healthy.
 
 - `age_category == "adult"`
 - `body_site == "stool"`

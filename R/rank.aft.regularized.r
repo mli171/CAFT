@@ -188,8 +188,8 @@ grad.J.n = function(par, y, delta, x, Gamma, Lambda, Gamma.ginv, Lambda.ginv, n.
 #' @noRd
 test.rank.aft = function(est.rank.res, score='rank') {
 
-  if (!(score %in% c('Cox','rank')) ) {
-    print('Error - score must either be Cox or rank')
+  if (!(score %in% c('Cox','rank','martingale')) ) {
+    print('Error - score must either be Cox or rank or martingale')
     return()
   }
 
@@ -210,7 +210,6 @@ test.rank.aft = function(est.rank.res, score='rank') {
   #   calculate score and variance-covariance of score function
   #
 
-
   c.matrix=rbind(Gamma,Lambda)
   W.n.beta.res=fast.W.n(beta=beta, y=y, delta=delta, x=x, regularize=regularize)
   W.n.beta=W.n.beta.res$W.n
@@ -223,6 +222,10 @@ test.rank.aft = function(est.rank.res, score='rank') {
     cov.x=cov(x)
     v=var(s.i)*c.matrix %*% cov.x %*% t(c.matrix)
     #	var.s=var(s.i)
+  }else if (score=='martingale'){
+    s.i.res=mySi.no.surv.martig(beta=beta,y=y,delta=delta,x=x)$s
+    s.i.res=s.i.res %*% t(c.matrix)
+    v=cov(s.i.res)
   }
 
   #
@@ -230,7 +233,7 @@ test.rank.aft = function(est.rank.res, score='rank') {
   #
 
   if (is.null(Gamma)) {
-    sigma.half=sqrtm(v)
+    sigma.half=expm::sqrtm(v)
     z.score=solve(sigma.half, W.n.beta)/sqrt(n.data)
     test=sum( z.score^2 )
     #	sigma.inv=solve(v,W.n.beta)
@@ -354,6 +357,60 @@ mySi.no.surv = function(beta, y, x, delta) {
   return(res)
 }
 
+
+
+#' @keywords internal
+#' @noRd
+mySi.no.surv.martig = function(beta, y, x, delta) {
+
+  if (!('matrix' %in% class(x))) x=matrix(x,ncol=1)
+  n.data=nrow(x)
+  n.var=ncol(x)
+
+  x.beta=colSums( beta*t(x) )
+  #   x.beta=as.vector( x %*% beta )
+  e=y-x.beta
+  ord=order(e)
+  e=e[ord]
+  delta=delta[ord]
+  x=x[ord,]
+  rnk=rep(0,n.data)
+  rnk[ord]=1:n.data
+
+  tab=table(delta, e)
+  n.times=ncol(tab)
+  events=colSums(tab)
+  censored=tab[1,]
+  failures=tab[2,]
+  gamma0=rev( cumsum( rev(events) ) )
+  cumhaz=cumsum( failures/gamma0 )
+  d.Lambda=diff( c(0,cumhaz) )
+  id=rep(1:n.times, times=events)
+  X=rowsum(x,id)
+  gamma1=apply(X, MARGIN=2, FUN=function(x) rev(cumsum(rev(x))) )
+
+  omega0=cumsum(d.Lambda*gamma0)
+  omega1=apply(d.Lambda*gamma1,MARGIN=2,FUN=cumsum)
+  #
+  #   restore ties
+  #
+  gamma0=gamma0[id]
+  gamma1=gamma1[id,,drop=FALSE]
+  omega0=omega0[id]
+  omega1=omega1[id,,drop=FALSE]
+  cumhaz=cumhaz[id]
+  #
+  #   final calculation
+  #
+  s = delta*(gamma0*x - gamma1)
+
+  s=s[rnk,,drop=FALSE]
+  cumhaz=cumhaz[rnk]
+
+
+  res=list( s=s, gamma0=gamma0, gamma1=gamma1, omega0=omega0, omega1=omega1, cumhaz=cumhaz, n.times=n.times)
+  return(res)
+}
 
 #' @keywords internal
 #' @noRd

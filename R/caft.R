@@ -9,6 +9,12 @@
 #'  pseudocounts, and addresses compositional bias through the
 #'  establishment of appropriate score test procedures.
 #'
+#' In addition to the original asymptotic CAFT inference, this version optionally
+#' provides permutation-based calibration of taxon-level p-values. When
+#' permutation is requested, the tested covariate is first residualized against
+#' the adjustment covariates, and empirical p-values are computed from permuted
+#' test statistics.
+#'
 #' @param otu.table the community OTU table (or taxa count table). Each row
 #'  corresponds to a sample and each column corresponds to one OTU (taxa).
 #' @param x.test the covariates are of interest. It can be a vector, matrix, or
@@ -34,11 +40,42 @@
 #'   bias.  Use this when the unpenalized rank equations have flat directions,
 #'   there is near-separation, heavy censoring/ties, or the optimizer fails
 #'   to converge. Default is TRUE.
+#' @param test.method a character string. The variance estimator used to estimate
+#'   the variance of the score equation. The methods of 'Cox', 'rank', and
+#'   'martingale' are available. Default is 'rank'.
 #' @param n.cores Integer. Number of CPU cores to use for parallel computation.
 #'  Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
 #'  runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
 #'  cluster. On typical desktops/laptops, a good choice is
 #'  \code{max(1L, parallel::detectCores() - 1L)}.
+#' @param perm.B Integer. Number of permutations used for empirical calibration
+#'   of taxon-level p-values. Default is \code{0L}, which disables permutation
+#'   and returns the original CAFT asymptotic results only.
+#' @param perm.parallel Logical; if \code{TRUE} and \code{perm.B > 0}, the
+#'   permutation loop is parallelized across outer workers. Default is
+#'   \code{FALSE}.
+#' @param perm.n.cores Integer. Number of CPU cores used for outer permutation
+#'   parallelization when \code{perm.parallel = TRUE}. Default is \code{1L}.
+#' @param perm.seed Optional integer random seed for reproducible permutations.
+#'   Default is \code{NULL}.
+#'
+#' @details
+#' If \code{perm.B > 0}, the function first fits the observed CAFT model using
+#' either the original \code{x.test} or the residualized tested covariate,
+#' depending on \code{perm.residualize}. It then permutes the rows of the tested
+#' covariate, refits the model for each permutation, and computes empirical
+#' two-sided p-values by comparing the observed normalized score statistic to its
+#' permutation distribution. Because permutation calibration can be
+#' computationally expensive, it is recommended primarily when the number of
+#' OTUs is not too large, for example fewer than 50.
+#'
+#' When \code{perm.parallel = TRUE}, outer permutation workers are used. To avoid
+#' nested parallelism, the internal CAFT fitting routine is forced to run in
+#' single-thread mode inside each permutation worker.
+#'
+#' Permutation mode is intended for the \code{x.test}/\code{x.adj} interface.
+#' If \code{x} and \code{Gamma} are supplied directly, users should ensure that
+#' the tested component being permuted is well defined.
 #' @return Return a list consisting of
 #' \describe{
 #' \item{beta.est}{A matrix that include the estimated coefficients by fitting
@@ -70,7 +107,12 @@
 #' \item{q.detected.otu}{detected significantly differential abundant taxa
 #'  (denoted by the column names of the OTU table) at the nominal FDR
 #'  based on \code{q.otu}}
-#'}
+#'   \item{p.perm}{Empirical taxon-level p-values from the permutation
+#'   distribution. Returned only when \code{perm.B > 0}.}
+#'   \item{q.perm}{Multiplicity-adjusted empirical p-values obtained from
+#'   \code{p.adjust(p.perm, method = adjust.method)}. Returned only when
+#'   \code{perm.B > 0}.}
+#' }
 #' @import stats
 #' @import graphics
 #' @import phyloseq
@@ -78,41 +120,60 @@
 #' @import ICSNP
 #' @import foreach
 #' @import doParallel
+#' @importFrom doRNG %dorng%
 #' @export
+#'
 #' @examples
 #' library(CAFT)
 #' data(Colon)
-#'
 #' library(phyloseq)
 #'
-#' count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
-#' sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
-#' tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
+#' count.tab <- t(as.data.frame(as.matrix(otu_table(Colon))))
+#' sample.tab <- as.data.frame(as.matrix(sample_data(Colon)))
 #'
-#' pNA = which(is.na(sample.tab$age))
-#' if(length(pNA) > 0){
-#'   count.tab = count.tab[-pNA, ]
-#'   sample.tab = sample.tab[-pNA,]
+#' pNA <- which(is.na(sample.tab$age))
+#' if (length(pNA) > 0) {
+#'   count.tab <- count.tab[-pNA, ]
+#'   sample.tab <- sample.tab[-pNA, ]
 #' }
-#' # No missing values from gender
 #'
-#' ## otu presence filtering
-#' p_otu = which(rowSums(t(count.tab) > 0) > 1)
-#' count.tab = count.tab[,p_otu]
-#' tax.tab = tax.tab[p_otu,]
-#' Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
-#' Disease1[sample.tab$disease == "CRC"] = 1
-#' Disease2[sample.tab$disease == "adenoma"] = 1
+#' p_otu <- which(rowSums(t(count.tab) > 0) > 1)
+#' count.tab <- count.tab[, p_otu]
 #'
-#' Age = as.numeric(sample.tab$age)
-#' Gender = as.numeric(factor(sample.tab$gender)) - 1
+#' Disease1 <- Disease2 <- rep(0, NROW(sample.tab))
+#' Disease1[sample.tab$disease == "CRC"] <- 1
+#' Disease2[sample.tab$disease == "adenoma"] <- 1
 #'
-#' x.test = cbind(Disease1, Disease2)
-#' x.adj  = cbind(Age, Gender)
-#' res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+#' Age <- as.numeric(sample.tab$age)
+#' Gender <- as.numeric(factor(sample.tab$gender)) - 1
+#'
+#' x.test <- cbind(Disease1, Disease2)
+#' x.adj  <- cbind(Age, Gender)
+#'
+#' ## CAFT analysis
+#' res.CAFT <- caft(otu.table = count.tab, x.test = x.test, x.adj = x.adj)
+#'
+#' ## permutation-calibrated CAFT analysis
+#' \dontrun{
+#' res.CAFT.perm <- caft(
+#'   otu.table = count.tab,
+#'   x.test = x.test,
+#'   x.adj = x.adj,
+#'   perm.B = 1000,
+#'   perm.parallel = FALSE,
+#'   perm.seed = 1
+#' )
+#' }
 caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
                  filter.thresh = 0.05, fdr.nominal = 0.20, adjust.method = "BH",
-                 regularize=TRUE, n.cores=1L) {
+                 regularize=TRUE, test.method="rank", n.cores=1L,
+                 perm.B = 0L,
+                 perm.parallel = FALSE,
+                 perm.n.cores = 1L,
+                 perm.seed = NULL) {
+
+  if (!is.null(perm.seed)) set.seed(perm.seed)
+
   if (!is.matrix(otu.table)) {
     otu.table <- as.matrix(otu.table)
   }
@@ -148,34 +209,16 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
   pNA.otu <- which(apply(otu.table, 1, function(x) any(is.na(x)))) # covariates
   pNA <- unique(c(pNA.x, pNA.otu))
   if (length(pNA) > 0) {
-    warnings("Missing values deleted!")
+    warning("Missing values deleted!")
     otu.table <- otu.table[-pNA, ]
     x <- x[-pNA, ]
   }
 
-  # center the covariates
-  x <- as.matrix(x - t(replicate(NROW(x), colMeans(x))))
-
-  n.data <- NROW(otu.table)
-  n.taxa <- NCOL(otu.table)
   n.param <- NCOL(x)
-  if (is.null(Gamma)) {
-    n.test <- NCOL(x.test)
-  } else {
-    n.test <- nrow(Gamma)
-  }
-
-  taxa.name <- colnames(otu.table)
-  if (is.null(taxa.name)) {
-    taxa.name <- paste("tstar", 1:n.taxa)
-  }
-  ra.all <- otu.table / rowSums(otu.table)
-  lib.size <- rowSums(otu.table)
-  # Censored relative abundance: every row should same
-  lim.ra <- matrix(1 / lib.size, nrow = n.data, ncol = n.taxa)
 
   # set up Gamma and Lambda matrices
   if (is.null(Gamma)) {
+    n.test <- NCOL(x.test)
     Gamma <- diag(n.param)[1:n.test, , drop = FALSE]
     if (n.test < n.param) {
       Lambda <- diag(n.param)[(n.test + 1):n.param, , drop = FALSE]
@@ -183,6 +226,7 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
       Lambda <- NULL
     }
   } else {
+    n.test <- nrow(Gamma)
     if (n.test < n.param) {
       Lambda <- t(MASS::Null(t(Gamma)))
     } else {
@@ -190,241 +234,187 @@ caft <- function(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
     }
   }
   Gamma.ginv <- MASS::ginv(Gamma)
-  Lambda.ginv <- MASS::ginv(Lambda)
+  Lambda.ginv <- if (is.null(Lambda)) NULL else MASS::ginv(Lambda)
 
-  #--------------------------
-  # create survival data
-  #--------------------------
-  log_neg <- -log10(lim.ra)
-  log_pos <- -log10(ra.all)
-  t.star.all <- matrix(log_neg,
-                       nrow = nrow(otu.table),
-                       ncol = ncol(otu.table)
+  x.test.use <- x %*% t(Gamma)
+  x.test.use <- as.matrix(x.test.use)
+
+  if (is.null(Lambda)) {
+    x.adj.use <- NULL
+  } else {
+    x.adj.use <- x %*% t(Lambda)
+    x.adj.use <- as.matrix(x.adj.use)
+  }
+
+  if (perm.B > 0L && !is.null(x.adj.use)) {
+    X.adj <- cbind(1, x.adj.use)
+    x.test.use <- residuals(lm.fit(x = X.adj, y = x.test.use))
+    x.test.use <- as.matrix(x.test.use)
+    if (NCOL(x.test.use) != n.test) {
+      x.test.use <- matrix(x.test.use, ncol = n.test)
+    }
+  }
+
+  ## Matrix to rebuild x from tested + nuisance coordinates
+  if (is.null(Lambda)) {
+    A <- Gamma
+  } else {
+    A <- rbind(Gamma, Lambda)
+  }
+
+  outer.parallel <- perm.B > 0L && perm.parallel && perm.n.cores > 1L
+
+  if (outer.parallel && n.cores > 1L) {
+    warning("Nested parallelism detected: \n Setting caft_fit(n.cores = 1) inside outer permutation workers.")
+    fit.n.cores <- 1L
+  } else {
+    fit.n.cores <- n.cores
+  }
+
+  if (is.null(x.adj.use)) {
+    x.obs <- x.test.use
+  } else {
+    x.obs <- cbind(x.test.use, x.adj.use)
+  }
+  x.obs <- x.obs %*% solve(t(A))
+
+  fit.obs <- caft_fit(
+    otu.table      = otu.table,
+    x              = x.obs,
+    Gamma          = Gamma,
+    Gamma.ginv     = Gamma.ginv,
+    Lambda         = Lambda,
+    Lambda.ginv    = Lambda.ginv,
+    filter.thresh  = filter.thresh,
+    fdr.nominal    = fdr.nominal,
+    adjust.method  = adjust.method,
+    regularize     = regularize,
+    test.method    = test.method,
+    n.cores        = fit.n.cores
   )
-  idx <- (otu.table > 0)
-  t.star.all[idx] <- log_pos[idx]
-  t.star.all <- as.data.frame(t.star.all)
-  colnames(t.star.all) <- paste("tstar", 1:n.taxa)
 
-  delta.all <- ((otu.table > 0)^2)
-  colnames(delta.all) <- paste("delta", 1:n.taxa)
+  if (perm.B <= 0L) {
+    fit.obs$p.perm <- NA_real_
+    fit.obs$q.perm <- NA_real_
+    fit.obs$p.perm.detected.otu <- NA_character_
+    fit.obs$q.perm.detected.otu <- NA_character_
+    return(fit.obs)
+  }
 
-  data <- data.frame(t.star.all, delta.all)
+  ## Permutation need
 
-  if(n.cores > 1L){
+  tested <- !is.na(fit.obs$p.otu)
 
-    doParallel::registerDoParallel(cores=n.cores)
+  if (n.test == 1L) {
+    T.obs <- drop(as.matrix(fit.obs$rank.teststat.norm))
+  } else {
+    T.obs <- fit.obs$rank.teststat
+  }
 
-    col_tstar_idx  <- grep("^tstar", colnames(data))
-    col_delta_idx  <- grep("^delta", colnames(data))
-    stopifnot(length(col_tstar_idx) >= n.taxa, length(col_delta_idx) >= n.taxa)
+  if (outer.parallel) {
+    doParallel::registerDoParallel(cores = perm.n.cores)
+    on.exit(foreach::registerDoSEQ(), add = TRUE)
 
-    ncoef <- NCOL(x)
+    T.perm <- foreach::foreach(
+      b = seq_len(perm.B),
+      .combine = "rbind",
+      .errorhandling = "pass",
+      .packages = "CAFT",
+      .export = c("caft_fit"),
+      .options.RNG = perm.seed
+    ) %dorng% {
 
-    res_phase1 <- foreach(
-      ii = 1:n.taxa,
-      .errorhandling = "pass"
-    ) %dopar% {
-      tstar   <- data[, col_tstar_idx[ii]]
-      delta.1 <- data[, col_delta_idx[ii]]
+      idx <- sample.int(nrow(x.test.use))
+      x.test.perm <- x.test.use[idx, , drop = FALSE]
 
-      if (sum(delta.1) <= n.data * filter.thresh) {
-        return(list(
-          beta = rep(NA_real_, ncoef),
-          skip_rare = 1L,
-          skip_fail_fit = 0L
-        ))
-      }
-
-      fit0.pen <- try(estimate.rank.aft(
-        y = tstar, delta = delta.1, x = x,
-        Gamma = NULL, Lambda = diag(n.param),
-        Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
-        b = NULL, beta = NULL,
-        test = TRUE, regularize = regularize, tol = 1e-12
-      ), silent = TRUE)
-
-      if (inherits(fit0.pen, "try-error")) {
-        list(beta = rep(NA_real_, ncoef), skip_rare = 0L, skip_fail_fit = 1L)
+      if (is.null(x.adj.use)) {
+        x.perm <- x.test.perm
       } else {
-        list(beta = as.numeric(fit0.pen$beta), skip_rare = 0L, skip_fail_fit = 0L)
+        x.perm <- cbind(x.test.perm, x.adj.use)
       }
-    }
+      x.perm <- x.perm %*% solve(t(A))
 
-    beta.est <- do.call(rbind, lapply(res_phase1, `[[`, "beta"))
-    colnames(beta.est) <- paste0("b", 1:NCOL(x), ".est")
-    skip.rare <- vapply(res_phase1, function(z) z$skip_rare, integer(1))
-    skip.fail.rank.fit.pen <- vapply(res_phase1, function(z) z$skip_fail_fit, integer(1))
+      fit.b <- caft_fit(
+        otu.table      = otu.table,
+        x              = x.perm,
+        Gamma          = Gamma,
+        Gamma.ginv     = Gamma.ginv,
+        Lambda         = Lambda,
+        Lambda.ginv    = Lambda.ginv,
+        filter.thresh  = filter.thresh,
+        fdr.nominal    = fdr.nominal,
+        adjust.method  = adjust.method,
+        regularize     = regularize,
+        test.method    = test.method,
+        n.cores        = 1L
+      )
 
-    if (n.test==1) {
-      betahat.median = median( as.matrix(beta.est) %*% t(Gamma), na.rm = T)
-    } else {
-      betahat.median = ICSNP::HR.Mest(as.matrix(beta.est) %*% t(Gamma), na.action=na.omit)$center
-    }
-    if (n.test==n.param) Lambda=NULL
-
-    res_phase2 <- foreach(
-      ii = 1:n.taxa,
-      .errorhandling = "pass"
-    ) %dopar% {
-      tstar   <- data[, col_tstar_idx[ii]]
-      delta.1 <- data[, col_delta_idx[ii]]
-
-      if (sum(delta.1) <= n.data * filter.thresh) {
-        return(list(
-          p = NA_real_, test = NA_real_,
-          z = rep(NA_real_, n.test), df = NA_real_,
-          beta_r = rep(NA_real_, ncoef),
-          skip_fail_test = 0L
-        ))
-      }
-
-      res.pen <- try(estimate.rank.aft(
-        y = tstar, delta = delta.1, x = x,
-        Gamma = Gamma, Lambda = Lambda,
-        Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-        b = betahat.median, beta = NULL,
-        test = TRUE, regularize = regularize, tol = 1e-12
-      ), silent = TRUE)
-
-      if (inherits(res.pen, "try-error")) {
-        return(list(
-          p = NA_real_, test = NA_real_,
-          z = rep(NA_real_, n.test), df = NA_real_,
-          beta_r = rep(NA_real_, ncoef),
-          skip_fail_test = 1L
-        ))
-      }
-
-      temp.rank <- try(test.rank.aft(res.pen, score = "rank"), silent = TRUE)
-      if (inherits(temp.rank, "try-error")) {
-        list(
-          p = NA_real_, test = NA_real_,
-          z = rep(NA_real_, n.test), df = NA_real_,
-          beta_r = rep(NA_real_, ncoef),
-          skip_fail_test = 1L
-        )
+      if (n.test == 1L) {
+        drop(as.matrix(fit.b$rank.teststat.norm))
       } else {
-        list(
-          p = as.numeric(temp.rank$p.value),
-          test = as.numeric(temp.rank$test),
-          z = as.numeric(temp.rank$z.score),
-          df = as.numeric(temp.rank$df),
-          beta_r = as.numeric(res.pen$beta.r),
-          skip_fail_test = 0L
-        )
+        fit.b$rank.teststat
       }
     }
 
-    p.rank.pen            <- vapply(res_phase2, function(z) z$p,    numeric(1))
-    rank.teststat             <- vapply(res_phase2, function(z) z$test, numeric(1))
-    df.rank.pen           <- vapply(res_phase2, function(z) z$df,   numeric(1))
-    skip.fail.rank.test.pen <- vapply(res_phase2, function(z) z$skip_fail_test, integer(1))
-    rank.teststat.norm        <- do.call(rbind, lapply(res_phase2, `[[`, "z"))
-    if (!is.matrix(rank.teststat.norm)) rank.teststat.norm <- matrix(rank.teststat.norm, nrow = n.taxa, ncol = n.test, byrow = TRUE)
-    beta.est.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
-    if (!is.matrix(beta.est.r)) beta.est.r <- matrix(beta.est.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
+  } else {
+    T.perm <- matrix(NA_real_, nrow = perm.B, ncol = length(T.obs))
 
-  }else{
+    for (b in seq_len(perm.B)) {
+      idx <- sample.int(nrow(x.test.use))
+      x.test.perm <- x.test.use[idx, , drop = FALSE]
 
-    #--------------------------
-    # unconstrained parameter estimates
-    #--------------------------
-
-    beta.est <- beta.est.r <- as.data.frame(matrix(NA, n.taxa, NCOL(x)))
-    colnames(beta.est) <- paste0("b", 1:NCOL(x), ".est")
-
-    skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
-    skip.fail.rank.fit.pen <- rep(0, n.taxa)
-
-    for (ii in 1:n.taxa) {
-      tstar <- data[, grep("tstar", colnames(data))[ii]]
-      delta.1 <- data[, grep("delta", colnames(data))[ii]]
-      if (sum(delta.1) <= n.data * filter.thresh) {
-        out <- rep(NA, NCOL(x))
-        skip.rare[ii] <- 1
+      if (is.null(x.adj.use)) {
+        x.perm <- x.test.perm
       } else {
-        fit0.pen <- try(estimate.rank.aft(
-          y = tstar, delta = delta.1, x = x,
-          Gamma = NULL, Lambda = diag(n.param),
-          Gamma.ginv = NULL, Lambda.ginv = diag(n.param),
-          b = NULL, beta = NULL,
-          test = TRUE, regularize = regularize,
-          tol = 10^-12
-        ))
-        if (inherits(fit0.pen, "try-error")) {
-          beta.est[ii, ] <- rep(NA, NCOL(x))
-          skip.fail.rank.fit.pen[ii] <- 1
-        } else {
-          beta.est[ii, ] <- fit0.pen$beta
-        }
+        x.perm <- cbind(x.test.perm, x.adj.use)
       }
-    }
+      x.perm <- x.perm %*% solve(t(A))
 
-    #--------------------------
-    # test equal to median
-    #--------------------------
+      fit.b <- caft_fit(
+        otu.table      = otu.table,
+        x              = x.perm,
+        Gamma          = Gamma,
+        Gamma.ginv     = Gamma.ginv,
+        Lambda         = Lambda,
+        Lambda.ginv    = Lambda.ginv,
+        filter.thresh  = filter.thresh,
+        fdr.nominal    = fdr.nominal,
+        adjust.method  = adjust.method,
+        regularize     = regularize,
+        test.method    = test.method,
+        n.cores        = 1L
+      )
 
-    if (n.test==1) {
-      betahat.median = median( as.matrix(beta.est) %*% t(Gamma), na.rm = T)
-    }else {
-      betahat.median = ICSNP::HR.Mest(as.matrix(beta.est) %*% t(Gamma), na.action=na.omit)$center
-    }
-    if (n.test==n.param) Lambda=NULL
-
-    rank.teststat <- df.rank.pen <- rep(NA, n.taxa)
-    rank.teststat.norm <- matrix(NA, ncol = n.test, nrow = n.taxa)
-    p.rank.pen <- rep(NA, n.taxa)
-    skip.fail.rank.test.pen <- rep(NA, n.taxa)
-    for (ii in 1:n.taxa) {
-      tstar <- data[, grep("tstar", colnames(data))[ii]]
-      delta.1 <- data[, grep("delta", colnames(data))[ii]]
-      if (sum(delta.1) > n.data * filter.thresh) {
-        res.pen <- try(estimate.rank.aft(
-          y = tstar, delta = delta.1, x = x,
-          Gamma = Gamma, Lambda = Lambda,
-          Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-          b = betahat.median,
-          beta = NULL, test = TRUE,
-          regularize = regularize, tol = 10^-12
-        ))
-        if (inherits(res.pen, "try-error")) {
-          p.rank.pen[ii] <- NA
-          rank.teststat[ii] <- NA
-          rank.teststat.norm[ii, ] <- NA
-          skip.fail.rank.test.pen[ii] <- 1
-        } else {
-          temp.rank <- try(test.rank.aft(res.pen, score = "rank"))
-          if (inherits(temp.rank, "try-error")) {
-            p.rank.pen[ii] <- NA
-            rank.teststat.norm[ii, ] <- NA
-            rank.teststat[ii] <- NA
-            skip.fail.rank.test.pen[ii] <- 1
-          } else {
-            p.rank.pen[ii] <- temp.rank$p.value
-            rank.teststat[ii] <- temp.rank$test
-            rank.teststat.norm[ii, ] <- temp.rank$z.score
-            df.rank.pen[ii] <- temp.rank$df
-            beta.est.r[ii, ] <- res.pen$beta.r
-          }
-        }
+      if (n.test == 1L) {
+        T.perm[b, ] <- drop(as.matrix(fit.b$rank.teststat.norm))
+      } else {
+        T.perm[b, ] <- fit.b$rank.teststat
       }
     }
   }
 
-  p.otu <- p.rank.pen
-  q.otu <- p.adjust(p.otu, method = adjust.method)
-  return(list(
-    beta.est = beta.est,
-    betahat.median = betahat.median,
-    rank.teststat = rank.teststat,
-    rank.teststat.norm = rank.teststat.norm,
-    skip.otu = skip.rare,
-    p.otu = p.otu,
-    df.test = df.rank.pen,
-    beta.est.r = beta.est.r,
-    p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
-    q.otu = q.otu,
-    q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]
-  ))
+  p.perm <- rep(NA_real_, length(T.obs))
+
+  if (n.test == 1L) {
+    p.perm[tested] <- sapply(which(tested), function(j) {
+      good <- !is.na(T.perm[, j]) & !is.na(T.obs[j])
+      (1 + sum(abs(T.perm[good, j]) >= abs(T.obs[j]))) / (1 + sum(good))
+    })
+  } else {
+    p.perm[tested] <- sapply(which(tested), function(j) {
+      good <- !is.na(T.perm[, j]) & !is.na(T.obs[j])
+      (1 + sum(T.perm[good, j] >= T.obs[j])) / (1 + sum(good))
+    })
+  }
+
+  q.perm <- rep(NA_real_, length(T.obs))
+  q.perm[tested] <- p.adjust(p.perm[tested], method = adjust.method)
+
+  fit.obs$p.perm <- p.perm
+  fit.obs$p.perm.detected.otu <- colnames(otu.table)[which(p.perm < fdr.nominal)]
+  fit.obs$q.perm <- q.perm
+  fit.obs$q.perm.detected.otu <- colnames(otu.table)[which(q.perm < fdr.nominal)]
+
+  return(fit.obs)
+
 }

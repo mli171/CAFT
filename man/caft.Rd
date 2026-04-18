@@ -14,7 +14,12 @@ caft(
   fdr.nominal = 0.2,
   adjust.method = "BH",
   regularize = TRUE,
-  n.cores = 1L
+  test.method = "rank",
+  n.cores = 1L,
+  perm.B = 0L,
+  perm.parallel = FALSE,
+  perm.n.cores = 1L,
+  perm.seed = NULL
 )
 }
 \arguments{
@@ -52,11 +57,29 @@ bias.  Use this when the unpenalized rank equations have flat directions,
 there is near-separation, heavy censoring/ties, or the optimizer fails
 to converge. Default is TRUE.}
 
+\item{test.method}{a character string. The variance estimator used to estimate
+the variance of the score equation. The methods of 'Cox', 'rank', and
+'martingale' are available. Default is 'rank'.}
+
 \item{n.cores}{Integer. Number of CPU cores to use for parallel computation.
 Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
 runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
 cluster. On typical desktops/laptops, a good choice is
 \code{max(1L, parallel::detectCores() - 1L)}.}
+
+\item{perm.B}{Integer. Number of permutations used for empirical calibration
+of taxon-level p-values. Default is \code{0L}, which disables permutation
+and returns the original CAFT asymptotic results only.}
+
+\item{perm.parallel}{Logical; if \code{TRUE} and \code{perm.B > 0}, the
+permutation loop is parallelized across outer workers. Default is
+\code{FALSE}.}
+
+\item{perm.n.cores}{Integer. Number of CPU cores used for outer permutation
+parallelization when \code{perm.parallel = TRUE}. Default is \code{1L}.}
+
+\item{perm.seed}{Optional integer random seed for reproducible permutations.
+Default is \code{NULL}.}
 }
 \value{
 Return a list consisting of
@@ -90,6 +113,11 @@ individual OTU association tests}
 \item{q.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{q.otu}}
+\item{p.perm}{Empirical taxon-level p-values from the permutation
+distribution. Returned only when \code{perm.B > 0}.}
+\item{q.perm}{Multiplicity-adjusted empirical p-values obtained from
+\code{p.adjust(p.perm, method = adjust.method)}. Returned only when
+\code{perm.B > 0}.}
 }
 }
 \description{
@@ -101,36 +129,70 @@ censoring mechanisms employed in survival analysis. This approach is
 inherently resistant to multiplicative bias, eliminates the need for
 pseudocounts, and addresses compositional bias through the
 establishment of appropriate score test procedures.
+
+In addition to the original asymptotic CAFT inference, this version optionally
+provides permutation-based calibration of taxon-level p-values. When
+permutation is requested, the tested covariate is first residualized against
+the adjustment covariates, and empirical p-values are computed from permuted
+test statistics.
+}
+\details{
+If \code{perm.B > 0}, the function first fits the observed CAFT model using
+either the original \code{x.test} or the residualized tested covariate,
+depending on \code{perm.residualize}. It then permutes the rows of the tested
+covariate, refits the model for each permutation, and computes empirical
+two-sided p-values by comparing the observed normalized score statistic to its
+permutation distribution. Because permutation calibration can be
+computationally expensive, it is recommended primarily when the number of
+OTUs is not too large, for example fewer than 50.
+
+When \code{perm.parallel = TRUE}, outer permutation workers are used. To avoid
+nested parallelism, the internal CAFT fitting routine is forced to run in
+single-thread mode inside each permutation worker.
+
+Permutation mode is intended for the \code{x.test}/\code{x.adj} interface.
+If \code{x} and \code{Gamma} are supplied directly, users should ensure that
+the tested component being permuted is well defined.
 }
 \examples{
 library(CAFT)
 data(Colon)
-
 library(phyloseq)
 
-count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
-sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
-tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
+count.tab <- t(as.data.frame(as.matrix(otu_table(Colon))))
+sample.tab <- as.data.frame(as.matrix(sample_data(Colon)))
 
-pNA = which(is.na(sample.tab$age))
-if(length(pNA) > 0){
-  count.tab = count.tab[-pNA, ]
-  sample.tab = sample.tab[-pNA,]
+pNA <- which(is.na(sample.tab$age))
+if (length(pNA) > 0) {
+  count.tab <- count.tab[-pNA, ]
+  sample.tab <- sample.tab[-pNA, ]
 }
-# No missing values from gender
 
-## otu presence filtering
-p_otu = which(rowSums(t(count.tab) > 0) > 1)
-count.tab = count.tab[,p_otu]
-tax.tab = tax.tab[p_otu,]
-Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
-Disease1[sample.tab$disease == "CRC"] = 1
-Disease2[sample.tab$disease == "adenoma"] = 1
+p_otu <- which(rowSums(t(count.tab) > 0) > 1)
+count.tab <- count.tab[, p_otu]
 
-Age = as.numeric(sample.tab$age)
-Gender = as.numeric(factor(sample.tab$gender)) - 1
+Disease1 <- Disease2 <- rep(0, NROW(sample.tab))
+Disease1[sample.tab$disease == "CRC"] <- 1
+Disease2[sample.tab$disease == "adenoma"] <- 1
 
-x.test = cbind(Disease1, Disease2)
-x.adj  = cbind(Age, Gender)
-res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+Age <- as.numeric(sample.tab$age)
+Gender <- as.numeric(factor(sample.tab$gender)) - 1
+
+x.test <- cbind(Disease1, Disease2)
+x.adj  <- cbind(Age, Gender)
+
+## CAFT analysis
+res.CAFT <- caft(otu.table = count.tab, x.test = x.test, x.adj = x.adj)
+
+## permutation-calibrated CAFT analysis
+\dontrun{
+res.CAFT.perm <- caft(
+  otu.table = count.tab,
+  x.test = x.test,
+  x.adj = x.adj,
+  perm.B = 1000,
+  perm.parallel = FALSE,
+  perm.seed = 1
+)
+}
 }

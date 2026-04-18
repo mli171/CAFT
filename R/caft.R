@@ -107,11 +107,17 @@
 #' \item{q.detected.otu}{detected significantly differential abundant taxa
 #'  (denoted by the column names of the OTU table) at the nominal FDR
 #'  based on \code{q.otu}}
-#'   \item{p.perm}{Empirical taxon-level p-values from the permutation
+#' \item{p.perm}{Empirical taxon-level p-values from the permutation
 #'   distribution. Returned only when \code{perm.B > 0}.}
-#'   \item{q.perm}{Multiplicity-adjusted empirical p-values obtained from
+#' \item{p.perm.detected.otu}{detected significantly differential abundant taxa
+#'  (denoted by the column names of the OTU table) at the nominal FDR based on
+#'  \code{p.perm}}
+#' \item{q.perm}{Multiplicity-adjusted empirical p-values obtained from
 #'   \code{p.adjust(p.perm, method = adjust.method)}. Returned only when
 #'   \code{perm.B > 0}.}
+#' \item{q.perm.detected.otu}{detected significantly differential abundant taxa
+#'  (denoted by the column names of the OTU table) at the nominal FDR based on
+#'  \code{q.perm}.}
 #' }
 #' @import stats
 #' @import graphics

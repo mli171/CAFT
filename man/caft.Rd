@@ -19,7 +19,8 @@ caft(
   perm.B = 0L,
   perm.parallel = FALSE,
   perm.n.cores = 1L,
-  perm.seed = NULL
+  perm.seed = NULL,
+  return.mr.resid = FALSE
 )
 }
 \arguments{
@@ -80,6 +81,12 @@ parallelization when \code{perm.parallel = TRUE}. Default is \code{1L}.}
 
 \item{perm.seed}{Optional integer random seed for reproducible permutations.
 Default is \code{NULL}.}
+
+\item{return.mr.resid}{Logical; if \code{TRUE}, return subject-level
+residual contribution matrices from the observed CAFT fit. Default is
+\code{FALSE}. The returned residuals are the compensated Cox-type score
+contributions computed by \code{mySi.no.surv()} and evaluated at the
+restricted estimate used in the score test.}
 }
 \value{
 Return a list consisting of
@@ -113,6 +120,10 @@ individual OTU association tests}
 \item{q.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{q.otu}}
+\item{MR.resid}{Returned only when \code{return.mr.resid = TRUE}. A list of
+length equal to the number of taxa. Each element is an \eqn{n \times p}
+matrix of subject-level compensated Cox-type residual contributions,
+evaluated at the restricted estimate used in the score test.}
 \item{p.perm}{Empirical taxon-level p-values from the permutation
 distribution. Returned only when \code{perm.B > 0}.}
 \item{p.perm.detected.otu}{detected significantly differential abundant taxa
@@ -144,10 +155,10 @@ test statistics.
 }
 \details{
 If \code{perm.B > 0}, the function first fits the observed CAFT model using
-either the original \code{x.test} or the residualized tested covariate,
-depending on \code{perm.residualize}. It then permutes the rows of the tested
-covariate, refits the model for each permutation, and computes empirical
-two-sided p-values by comparing the observed normalized score statistic to its
+the residualized tested covariate when adjustment covariates are present, and
+otherwise using the original tested covariate. It then permutes the rows of
+the tested covariate, refits the model for each permutation, and computes
+empirical p-values by comparing the observed test statistic to its
 permutation distribution. Because permutation calibration can be
 computationally expensive, it is recommended primarily when the number of
 OTUs is not too large, for example fewer than 50.

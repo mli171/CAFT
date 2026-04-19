@@ -7,7 +7,8 @@
 #' @noRd
 caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
                      filter.thresh = 0.05, fdr.nominal = 0.20, adjust.method = "BH",
-                     regularize=TRUE, test.method="rank", n.cores=1L) {
+                     regularize=TRUE, test.method="rank", n.cores=1L,
+                     return.mr.resid = FALSE) {
 
   # center the covariates
   x <- as.matrix(x - t(replicate(NROW(x), colMeans(x))))
@@ -141,12 +142,26 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
           skip_fail_test = 1L
         )
       } else {
+        mr.resid <- NULL
+
+        if (return.mr.resid) {
+          beta.cur <- if (is.null(res.pen$beta)) res.pen$beta.r else res.pen$beta
+
+          mr.resid <- mySi.no.surv(
+            beta  = beta.cur,
+            y     = tstar,
+            x     = x,
+            delta = delta.1
+          )$s
+        }
+
         list(
           p = as.numeric(temp.rank$p.value),
           test = as.numeric(temp.rank$test),
           z = as.numeric(temp.rank$z.score),
           df = as.numeric(temp.rank$df),
           beta_r = as.numeric(res.pen$beta.r),
+          mr.resid = mr.resid,
           skip_fail_test = 0L
         )
       }
@@ -161,6 +176,11 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
     beta.est.r <- do.call(rbind, lapply(res_phase2, `[[`, "beta_r"))
     if (!is.matrix(beta.est.r)) beta.est.r <- matrix(beta.est.r, nrow = n.taxa, ncol = ncoef, byrow = TRUE)
     beta.est.r <- as.data.frame(beta.est.r)
+    if (return.mr.resid) {
+      mr.resid <- lapply(res_phase2, `[[`, "mr.resid")
+    } else {
+      mr.resid <- NULL
+    }
   }else{
 
     #--------------------------
@@ -172,6 +192,12 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
 
     skip.rare <- skip.fail.rank.fit <- rep(0, n.taxa)
     skip.fail.rank.fit.pen <- rep(0, n.taxa)
+
+    if (return.mr.resid) {
+      mr.resid <- vector("list", n.taxa)
+    } else {
+      mr.resid <- NULL
+    }
 
     for (ii in 1:n.taxa) {
       tstar <- data[, grep("tstar", colnames(data))[ii]]
@@ -243,6 +269,16 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
             rank.teststat.norm[ii, ] <- temp.rank$z.score
             df.rank.pen[ii] <- temp.rank$df
             beta.est.r[ii, ] <- res.pen$beta.r
+            if (return.mr.resid) {
+              beta.cur <- if (is.null(res.pen$beta)) res.pen$beta.r else res.pen$beta
+
+              mr.resid[[ii]] <- mySi.no.surv(
+                beta  = beta.cur,
+                y     = tstar,
+                x     = x,
+                delta = delta.1
+              )$s
+            }
           }
         }
       }
@@ -251,7 +287,8 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
 
   p.otu <- p.rank.pen
   q.otu <- p.adjust(p.otu, method = adjust.method)
-  return(list(
+
+  out <- list(
     beta.est = beta.est,
     betahat.median = betahat.median,
     rank.teststat = rank.teststat,
@@ -263,5 +300,12 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
     p.detected.otu = colnames(otu.table)[which(p.otu < fdr.nominal)],
     q.otu = q.otu,
     q.detected.otu = colnames(otu.table)[which(q.otu < fdr.nominal)]
-  ))
+  )
+
+  if (return.mr.resid) {
+    out$mr.resid <- mr.resid
+  }
+
+  return(out)
+
 }

@@ -361,6 +361,79 @@ mySi.no.surv = function(beta, y, x, delta) {
 
 #' @keywords internal
 #' @noRd
+mySi.no.surv.resid = function(beta, y, x, delta) {
+
+  if (!('matrix' %in% class(x))) x=matrix(x,ncol=1)
+  n.data=nrow(x)
+  n.var=ncol(x)
+
+  x.beta=colSums( beta*t(x) )
+  #   x.beta=as.vector( x %*% beta )
+  e=y-x.beta
+  ord=order(e)
+  e=e[ord]
+  delta=delta[ord]
+  x = x[ord, , drop = FALSE]
+  rnk=rep(0,n.data)
+  rnk[ord]=1:n.data
+
+  # tab=table(delta, e)
+  # n.times=ncol(tab)
+  # events=colSums(tab)
+  # censored=tab[1,]
+  # failures=tab[2,]
+
+  tab <- table(delta, e)
+  n.times <- ncol(tab)
+  if (all(range(delta) == c(0, 1))) {
+    events   <- colSums(tab)
+    censored <- tab[1, ]
+    failures <- tab[2, ]
+  } else if (all(delta == 1)) {
+    failures <- as.numeric(tab)
+    censored <- rep(0, length(failures))
+    events   <- failures
+  } else if (all(delta == 0)) {
+    censored <- as.numeric(tab)
+    failures <- rep(0, length(censored))
+    events   <- censored
+  }
+
+  gamma0=rev( cumsum( rev(events) ) )
+  cumhaz=cumsum( failures/gamma0 )
+  d.Lambda=diff( c(0,cumhaz) )
+  id=rep(1:n.times, times=events)
+  X=rowsum(x,id)
+  gamma1=apply(X, MARGIN=2, FUN=function(x) rev(cumsum(rev(x))) )
+
+  omega0=cumsum(d.Lambda*gamma0)
+  omega1=apply(d.Lambda*gamma1,MARGIN=2,FUN=cumsum)
+  #
+  #   restore ties
+  #
+  gamma0=gamma0[id]
+  gamma1=gamma1[id,,drop=FALSE]
+  omega0=omega0[id]
+  omega1=omega1[id,,drop=FALSE]
+  cumhaz=cumhaz[id]
+  #
+  #   final calculation
+  #
+  s = delta*(gamma0*x - gamma1) - (omega0*x - omega1)
+
+  s=s[rnk,,drop=FALSE]
+  cumhaz=cumhaz[rnk]
+
+
+  res=list( s=s, gamma0=gamma0, gamma1=gamma1, omega0=omega0, omega1=omega1, cumhaz=cumhaz, n.times=n.times)
+  return(res)
+}
+
+
+
+
+#' @keywords internal
+#' @noRd
 mySi.no.surv.martig = function(beta, y, x, delta) {
 
   if (!('matrix' %in% class(x))) x=matrix(x,ncol=1)

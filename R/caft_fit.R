@@ -147,7 +147,7 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
         if (return.mr.resid) {
           beta.cur <- if (is.null(res.pen$beta)) res.pen$beta.r else res.pen$beta
 
-          mr.resid <- mySi.no.surv(
+          mr.resid <- mySi.no.surv.resid(
             beta  = beta.cur,
             y     = tstar,
             x     = x,
@@ -272,7 +272,7 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
             if (return.mr.resid) {
               beta.cur <- if (is.null(res.pen$beta)) res.pen$beta.r else res.pen$beta
 
-              mr.resid[[ii]] <- mySi.no.surv(
+              mr.resid[[ii]] <- mySi.no.surv.resid(
                 beta  = beta.cur,
                 y     = tstar,
                 x     = x,

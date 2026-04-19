@@ -122,8 +122,8 @@ individual OTU association tests}
 based on \code{q.otu}}
 \item{MR.resid}{Returned only when \code{return.mr.resid = TRUE}. A list of
 length equal to the number of taxa. Each element is an \eqn{n \times p}
-matrix of subject-level compensated Cox-type residual contributions,
-evaluated at the restricted estimate used in the score test.}
+matrix of subject-level compensated Cox-type residual (Martingale residual)
+contributions, evaluated at the restricted estimate used in the score test.}
 \item{p.perm}{Empirical taxon-level p-values from the permutation
 distribution. Returned only when \code{perm.B > 0}.}
 \item{p.perm.detected.otu}{detected significantly differential abundant taxa

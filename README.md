@@ -44,13 +44,15 @@ the adult colorectal cancer using the stool samples [(Pasolli et al.,2017)](http
 
 ```{r}
 library(CAFT)
-data(Colon)
-
 library(phyloseq)
+
+data(Colon)
 
 count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
 sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
 tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
+
+dim(count.tab)
 
 pNA = which(is.na(sample.tab$age))
 if(length(pNA) > 0){
@@ -59,20 +61,16 @@ if(length(pNA) > 0){
 }
 # No missing values from gender
 
-p = sample.tab$study_name %in% "WirbelJ_2018"
-sample.tab = sample.tab[p,]
-count.tab = count.tab[p, ]
-
-pNA = which(is.na(sample.tab$age))
-if(length(pNA) > 0){
-count.tab = count.tab[-pNA, ]
-  sample.tab = sample.tab[-pNA,]
-}
-
-### otu presence filtering
+## otu presence filtering
 p_otu = which(rowSums(t(count.tab) > 0) > 1)
 count.tab = count.tab[,p_otu]
 tax.tab = tax.tab[p_otu,]
+
+dim(count.tab)
+
+cens.prop = colMeans(count.tab == 0, na.rm = T)
+mean(cens.prop)
+
 Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
 Disease1[sample.tab$disease == "CRC"] = 1
 Disease2[sample.tab$disease == "adenoma"] = 1
@@ -82,10 +80,10 @@ Gender = as.numeric(factor(sample.tab$gender)) - 1
 
 x.test = cbind(Disease1, Disease2)
 x.adj  = cbind(Age, Gender)
+
 res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
-              
-# CAFT (parallel version)
-res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
+
+res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=4)
 ```
 
 ## References

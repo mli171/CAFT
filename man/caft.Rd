@@ -172,6 +172,11 @@ If \code{x} and \code{Gamma} are supplied directly, users should ensure that
 the tested component being permuted is well defined.
 }
 \examples{
+# install phyloseq if needed
+if (!requireNamespace("phyloseq", quietly = TRUE)) {
+  BiocManager::install("phyloseq")
+}
+
 library(CAFT)
 data(Colon)
 library(phyloseq)

@@ -139,6 +139,11 @@
 #' @export
 #'
 #' @examples
+#' # install phyloseq if needed
+#' if (!requireNamespace("phyloseq", quietly = TRUE)) {
+#'   BiocManager::install("phyloseq")
+#' }
+#'
 #' library(CAFT)
 #' data(Colon)
 #' library(phyloseq)

@@ -19,13 +19,12 @@ Imports:
     MASS,
     phyloseq,
     stats
-License: LGPL (>=2)
+License: LGPL (>= 2)
 Roxygen: list(markdown = TRUE)
 Depends: R (>= 4.3.0)
 URL: https://github.com/mli171/CAFT
 BugReports: https://github.com/mli171/CAFT/issues
 Suggests: 
-    BiocStyle,
     knitr,
     rmarkdown,
     mia,

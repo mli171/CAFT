@@ -139,13 +139,10 @@
 #' @export
 #'
 #' @examples
-#' # install phyloseq if needed
-#' if (!requireNamespace("phyloseq", quietly = TRUE)) {
-#'   BiocManager::install("phyloseq")
-#' }
-#'
+#' \donttest{
 #' library(CAFT)
 #' data(Colon)
+#'
 #' library(phyloseq)
 #'
 #' count.tab <- t(as.data.frame(as.matrix(otu_table(Colon))))
@@ -174,7 +171,7 @@
 #' res.CAFT <- caft(otu.table = count.tab, x.test = x.test, x.adj = x.adj)
 #'
 #' ## permutation-calibrated CAFT analysis
-#' \dontrun{
+#'
 #' res.CAFT.perm <- caft(
 #'   otu.table = count.tab,
 #'   x.test = x.test,

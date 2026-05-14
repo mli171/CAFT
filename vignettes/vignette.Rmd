@@ -44,7 +44,7 @@ devtools::install_local("CAFT_1.0.tar.gz", dependencies = TRUE)
 You can also install the developer version from github via the following code.
 
 ```{r, eval=FALSE}
-remotes::install_github("mli171/CAFT", build_vignettes = TRUE, dependencies = TRUE)
+remotes::install_github("mli171/CAFT", dependencies = TRUE)
 ```
 
 ## Open the Vignette in R

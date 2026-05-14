@@ -172,13 +172,10 @@ If \code{x} and \code{Gamma} are supplied directly, users should ensure that
 the tested component being permuted is well defined.
 }
 \examples{
-# install phyloseq if needed
-if (!requireNamespace("phyloseq", quietly = TRUE)) {
-  BiocManager::install("phyloseq")
-}
-
+\donttest{
 library(CAFT)
 data(Colon)
+
 library(phyloseq)
 
 count.tab <- t(as.data.frame(as.matrix(otu_table(Colon))))
@@ -207,7 +204,7 @@ x.adj  <- cbind(Age, Gender)
 res.CAFT <- caft(otu.table = count.tab, x.test = x.test, x.adj = x.adj)
 
 ## permutation-calibrated CAFT analysis
-\dontrun{
+
 res.CAFT.perm <- caft(
   otu.table = count.tab,
   x.test = x.test,

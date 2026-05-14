@@ -38,7 +38,7 @@ The **CAFT** package develops a rank-based compositional analysis using an Accel
 Install from the local file (the .tar.gz file), which you can download from https://github.com/mli171/CAFT.
 
 ```{r, eval=FALSE}
-devtools::install_local("CAFT_1.0.tar.gz", dependencies = TRUE)
+pak::pak("CAFT_1.0.tar.gz") # local directory
 ```
 
 You can also install the developer version from github via the following code.

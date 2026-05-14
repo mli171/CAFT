@@ -392,7 +392,7 @@ with optional adjustment for continuous and categorical covariates.</p>
 <h2>Installation</h2>
 <p>Install from the local file (the .tar.gz file), which you can
 download from <a href="https://github.com/mli171/CAFT" class="uri">https://github.com/mli171/CAFT</a>.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_local</span>(<span class="st">&quot;CAFT_1.0.tar.gz&quot;</span>, <span class="at">dependencies =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>pak<span class="sc">::</span><span class="fu">pak</span>(<span class="st">&quot;CAFT_1.0.tar.gz&quot;</span>) <span class="co"># local directory</span></span></code></pre></div>
 <p>You can also install the developer version from github via the
 following code.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;mli171/CAFT&quot;</span>, <span class="at">dependencies =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
@@ -603,11 +603,11 @@ Methods</em>, 14(11), 1023–1024 (2017). <a href="https://doi.org/10.1038/nmeth
 <span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a><span class="co">#&gt; Running under: macOS 26.3.1</span></span>
 <span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a><span class="co">#&gt; Matrix products: default</span></span>
-<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a><span class="co">#&gt; BLAS:   /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRblas.0.dylib </span></span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a><span class="co">#&gt; BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib </span></span>
 <span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a><span class="co">#&gt; LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1</span></span>
 <span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a><span class="co">#&gt; locale:</span></span>
-<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a><span class="co">#&gt; [1] C/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a><span class="co">#&gt; [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8</span></span>
 <span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a><span class="co">#&gt; time zone: America/Chicago</span></span>
 <span id="cb17-14"><a href="#cb17-14" tabindex="-1"></a><span class="co">#&gt; tzcode source: internal</span></span>
@@ -616,41 +616,39 @@ Methods</em>, 14(11), 1023–1024 (2017). <a href="https://doi.org/10.1038/nmeth
 <span id="cb17-17"><a href="#cb17-17" tabindex="-1"></a><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span id="cb17-18"><a href="#cb17-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb17-19"><a href="#cb17-19" tabindex="-1"></a><span class="co">#&gt; other attached packages:</span></span>
-<span id="cb17-20"><a href="#cb17-20" tabindex="-1"></a><span class="co">#&gt; [1] phyloseq_1.52.0 CAFT_0.1.0     </span></span>
+<span id="cb17-20"><a href="#cb17-20" tabindex="-1"></a><span class="co">#&gt; [1] CAFT_0.1.0      phyloseq_1.52.0</span></span>
 <span id="cb17-21"><a href="#cb17-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb17-22"><a href="#cb17-22" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span id="cb17-23"><a href="#cb17-23" tabindex="-1"></a><span class="co">#&gt;  [1] ade4_1.7-23             tidyselect_1.2.1        dplyr_1.1.4            </span></span>
-<span id="cb17-24"><a href="#cb17-24" tabindex="-1"></a><span class="co">#&gt;  [4] farver_2.1.2            Biostrings_2.76.0       S7_0.2.2               </span></span>
-<span id="cb17-25"><a href="#cb17-25" tabindex="-1"></a><span class="co">#&gt;  [7] fastmap_1.2.0           digest_0.6.39           lifecycle_1.0.5        </span></span>
-<span id="cb17-26"><a href="#cb17-26" tabindex="-1"></a><span class="co">#&gt; [10] cluster_2.1.8.1         survival_3.8-3          magrittr_2.0.5         </span></span>
-<span id="cb17-27"><a href="#cb17-27" tabindex="-1"></a><span class="co">#&gt; [13] compiler_4.5.0          rngtools_1.5.2          rlang_1.2.0            </span></span>
-<span id="cb17-28"><a href="#cb17-28" tabindex="-1"></a><span class="co">#&gt; [16] sass_0.4.10             tools_4.5.0             igraph_2.1.4           </span></span>
-<span id="cb17-29"><a href="#cb17-29" tabindex="-1"></a><span class="co">#&gt; [19] yaml_2.3.12             data.table_1.18.4       knitr_1.51             </span></span>
-<span id="cb17-30"><a href="#cb17-30" tabindex="-1"></a><span class="co">#&gt; [22] labeling_0.4.3          doRNG_1.8.6.3           xml2_1.5.2             </span></span>
-<span id="cb17-31"><a href="#cb17-31" tabindex="-1"></a><span class="co">#&gt; [25] plyr_1.8.9              RColorBrewer_1.1-3      expm_1.0-0             </span></span>
-<span id="cb17-32"><a href="#cb17-32" tabindex="-1"></a><span class="co">#&gt; [28] withr_3.0.2             BiocGenerics_0.56.0     grid_4.5.0             </span></span>
-<span id="cb17-33"><a href="#cb17-33" tabindex="-1"></a><span class="co">#&gt; [31] stats4_4.5.0            multtest_2.64.0         biomformat_1.36.0      </span></span>
-<span id="cb17-34"><a href="#cb17-34" tabindex="-1"></a><span class="co">#&gt; [34] Rhdf5lib_1.30.0         ggplot2_4.0.3           scales_1.4.0           </span></span>
-<span id="cb17-35"><a href="#cb17-35" tabindex="-1"></a><span class="co">#&gt; [37] iterators_1.0.14        MASS_7.3-65             cli_3.6.6              </span></span>
-<span id="cb17-36"><a href="#cb17-36" tabindex="-1"></a><span class="co">#&gt; [40] mvtnorm_1.3-7           survey_4.5              rmarkdown_2.31         </span></span>
-<span id="cb17-37"><a href="#cb17-37" tabindex="-1"></a><span class="co">#&gt; [43] vegan_2.7-3             crayon_1.5.3            generics_0.1.4         </span></span>
-<span id="cb17-38"><a href="#cb17-38" tabindex="-1"></a><span class="co">#&gt; [46] otel_0.2.0              rstudioapi_0.17.1       httr_1.4.7             </span></span>
-<span id="cb17-39"><a href="#cb17-39" tabindex="-1"></a><span class="co">#&gt; [49] reshape2_1.4.5          commonmark_2.0.0        DBI_1.3.0              </span></span>
-<span id="cb17-40"><a href="#cb17-40" tabindex="-1"></a><span class="co">#&gt; [52] ape_5.8-1               cachem_1.1.0            rhdf5_2.52.1           </span></span>
-<span id="cb17-41"><a href="#cb17-41" tabindex="-1"></a><span class="co">#&gt; [55] stringr_1.6.0           splines_4.5.0           parallel_4.5.0         </span></span>
-<span id="cb17-42"><a href="#cb17-42" tabindex="-1"></a><span class="co">#&gt; [58] XVector_0.48.0          mitools_2.4             vctrs_0.7.3            </span></span>
-<span id="cb17-43"><a href="#cb17-43" tabindex="-1"></a><span class="co">#&gt; [61] Matrix_1.7-3            jsonlite_2.0.0          litedown_0.9           </span></span>
-<span id="cb17-44"><a href="#cb17-44" tabindex="-1"></a><span class="co">#&gt; [64] IRanges_2.42.0          S4Vectors_0.46.0        foreach_1.5.2          </span></span>
-<span id="cb17-45"><a href="#cb17-45" tabindex="-1"></a><span class="co">#&gt; [67] jquerylib_0.1.4         ICS_1.4-2               glue_1.8.1             </span></span>
-<span id="cb17-46"><a href="#cb17-46" tabindex="-1"></a><span class="co">#&gt; [70] codetools_0.2-20        ggtext_0.1.2            ICSNP_1.1-2            </span></span>
-<span id="cb17-47"><a href="#cb17-47" tabindex="-1"></a><span class="co">#&gt; [73] stringi_1.8.7           gtable_0.3.6            GenomeInfoDb_1.44.3    </span></span>
-<span id="cb17-48"><a href="#cb17-48" tabindex="-1"></a><span class="co">#&gt; [76] UCSC.utils_1.4.0        tibble_3.3.1            pillar_1.11.1          </span></span>
-<span id="cb17-49"><a href="#cb17-49" tabindex="-1"></a><span class="co">#&gt; [79] htmltools_0.5.9         rhdf5filters_1.20.0     GenomeInfoDbData_1.2.14</span></span>
-<span id="cb17-50"><a href="#cb17-50" tabindex="-1"></a><span class="co">#&gt; [82] R6_2.6.1                doParallel_1.0.17       evaluate_1.0.5         </span></span>
-<span id="cb17-51"><a href="#cb17-51" tabindex="-1"></a><span class="co">#&gt; [85] lattice_0.22-7          Biobase_2.70.0          markdown_2.0           </span></span>
-<span id="cb17-52"><a href="#cb17-52" tabindex="-1"></a><span class="co">#&gt; [88] gridtext_0.1.6          bslib_0.10.0            Rcpp_1.1.1-1.1         </span></span>
-<span id="cb17-53"><a href="#cb17-53" tabindex="-1"></a><span class="co">#&gt; [91] nlme_3.1-168            permute_0.9-10          mgcv_1.9-3             </span></span>
-<span id="cb17-54"><a href="#cb17-54" tabindex="-1"></a><span class="co">#&gt; [94] xfun_0.57               pkgconfig_2.0.3</span></span></code></pre></div>
+<span id="cb17-23"><a href="#cb17-23" tabindex="-1"></a><span class="co">#&gt;   [1] ICSNP_1.1-2             DBI_1.3.0               remotes_2.5.0           testthat_3.3.2         </span></span>
+<span id="cb17-24"><a href="#cb17-24" tabindex="-1"></a><span class="co">#&gt;   [5] permute_0.9-10          rlang_1.2.0             magrittr_2.0.5          ade4_1.7-23            </span></span>
+<span id="cb17-25"><a href="#cb17-25" tabindex="-1"></a><span class="co">#&gt;   [9] otel_0.2.0              compiler_4.5.0          roxygen2_8.0.0          mgcv_1.9-3             </span></span>
+<span id="cb17-26"><a href="#cb17-26" tabindex="-1"></a><span class="co">#&gt;  [13] callr_3.7.6             vctrs_0.7.3             reshape2_1.4.5          stringr_1.6.0          </span></span>
+<span id="cb17-27"><a href="#cb17-27" tabindex="-1"></a><span class="co">#&gt;  [17] pkgconfig_2.0.3         crayon_1.5.3            fastmap_1.2.0           XVector_0.48.0         </span></span>
+<span id="cb17-28"><a href="#cb17-28" tabindex="-1"></a><span class="co">#&gt;  [21] ellipsis_0.3.3          labeling_0.4.3          rmarkdown_2.31          markdown_2.0           </span></span>
+<span id="cb17-29"><a href="#cb17-29" tabindex="-1"></a><span class="co">#&gt;  [25] sessioninfo_1.2.3       ps_1.9.1                UCSC.utils_1.4.0        purrr_1.2.2            </span></span>
+<span id="cb17-30"><a href="#cb17-30" tabindex="-1"></a><span class="co">#&gt;  [29] xfun_0.57               cachem_1.1.0            litedown_0.9            GenomeInfoDb_1.44.3    </span></span>
+<span id="cb17-31"><a href="#cb17-31" tabindex="-1"></a><span class="co">#&gt;  [33] jsonlite_2.0.0          biomformat_1.36.0       pak_0.9.5               rhdf5filters_1.20.0    </span></span>
+<span id="cb17-32"><a href="#cb17-32" tabindex="-1"></a><span class="co">#&gt;  [37] Rhdf5lib_1.30.0         prettyunits_1.2.0       parallel_4.5.0          cluster_2.1.8.1        </span></span>
+<span id="cb17-33"><a href="#cb17-33" tabindex="-1"></a><span class="co">#&gt;  [41] R6_2.6.1                bslib_0.10.0            stringi_1.8.7           RColorBrewer_1.1-3     </span></span>
+<span id="cb17-34"><a href="#cb17-34" tabindex="-1"></a><span class="co">#&gt;  [45] pkgload_1.5.2           brio_1.1.5              jquerylib_0.1.4         Rcpp_1.1.1-1.1         </span></span>
+<span id="cb17-35"><a href="#cb17-35" tabindex="-1"></a><span class="co">#&gt;  [49] iterators_1.0.14        knitr_1.51              usethis_3.2.1           IRanges_2.42.0         </span></span>
+<span id="cb17-36"><a href="#cb17-36" tabindex="-1"></a><span class="co">#&gt;  [53] Matrix_1.7-3            splines_4.5.0           igraph_2.1.4            tidyselect_1.2.1       </span></span>
+<span id="cb17-37"><a href="#cb17-37" tabindex="-1"></a><span class="co">#&gt;  [57] rstudioapi_0.17.1       yaml_2.3.12             vegan_2.7-3             doParallel_1.0.17      </span></span>
+<span id="cb17-38"><a href="#cb17-38" tabindex="-1"></a><span class="co">#&gt;  [61] ggtext_0.1.2            codetools_0.2-20        curl_7.1.0              processx_3.9.0         </span></span>
+<span id="cb17-39"><a href="#cb17-39" tabindex="-1"></a><span class="co">#&gt;  [65] pkgbuild_1.4.8          doRNG_1.8.6.3           lattice_0.22-7          tibble_3.3.1           </span></span>
+<span id="cb17-40"><a href="#cb17-40" tabindex="-1"></a><span class="co">#&gt;  [69] plyr_1.8.9              Biobase_2.70.0          withr_3.0.2             S7_0.2.2               </span></span>
+<span id="cb17-41"><a href="#cb17-41" tabindex="-1"></a><span class="co">#&gt;  [73] evaluate_1.0.5          desc_1.4.3              survival_3.8-3          survey_4.5             </span></span>
+<span id="cb17-42"><a href="#cb17-42" tabindex="-1"></a><span class="co">#&gt;  [77] xml2_1.5.2              Biostrings_2.76.0       BiocManager_1.30.27     pillar_1.11.1          </span></span>
+<span id="cb17-43"><a href="#cb17-43" tabindex="-1"></a><span class="co">#&gt;  [81] rngtools_1.5.2          foreach_1.5.2           stats4_4.5.0            generics_0.1.4         </span></span>
+<span id="cb17-44"><a href="#cb17-44" tabindex="-1"></a><span class="co">#&gt;  [85] xopen_1.0.1             rprojroot_2.1.1         S4Vectors_0.46.0        ggplot2_4.0.3          </span></span>
+<span id="cb17-45"><a href="#cb17-45" tabindex="-1"></a><span class="co">#&gt;  [89] commonmark_2.0.0        scales_1.4.0            glue_1.8.1              tools_4.5.0            </span></span>
+<span id="cb17-46"><a href="#cb17-46" tabindex="-1"></a><span class="co">#&gt;  [93] data.table_1.18.4       fs_2.1.0                mvtnorm_1.3-7           rhdf5_2.52.1           </span></span>
+<span id="cb17-47"><a href="#cb17-47" tabindex="-1"></a><span class="co">#&gt;  [97] grid_4.5.0              ICS_1.4-2               mitools_2.4             ape_5.8-1              </span></span>
+<span id="cb17-48"><a href="#cb17-48" tabindex="-1"></a><span class="co">#&gt; [101] devtools_2.5.2          nlme_3.1-168            GenomeInfoDbData_1.2.14 cli_3.6.6              </span></span>
+<span id="cb17-49"><a href="#cb17-49" tabindex="-1"></a><span class="co">#&gt; [105] rcmdcheck_1.4.0         expm_1.0-0              dplyr_1.1.4             gtable_0.3.6           </span></span>
+<span id="cb17-50"><a href="#cb17-50" tabindex="-1"></a><span class="co">#&gt; [109] sass_0.4.10             digest_0.6.39           BiocGenerics_0.56.0     farver_2.1.2           </span></span>
+<span id="cb17-51"><a href="#cb17-51" tabindex="-1"></a><span class="co">#&gt; [113] memoise_2.0.1           htmltools_0.5.9         multtest_2.64.0         lifecycle_1.0.5        </span></span>
+<span id="cb17-52"><a href="#cb17-52" tabindex="-1"></a><span class="co">#&gt; [117] httr_1.4.7              gridtext_0.1.6          MASS_7.3-65</span></span></code></pre></div>
 </div>
 
 

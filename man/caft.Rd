@@ -203,13 +203,13 @@ x.adj  <- cbind(Age, Gender)
 ## CAFT analysis
 res.CAFT <- caft(otu.table = count.tab, x.test = x.test, x.adj = x.adj)
 
-## permutation-calibrated CAFT analysis
+## permutation-calibrated CAFT analysis can be slow
 
 res.CAFT.perm <- caft(
   otu.table = count.tab,
   x.test = x.test,
   x.adj = x.adj,
-  perm.B = 1000,
+  perm.B = 3,
   perm.parallel = FALSE,
   perm.seed = 1
 )

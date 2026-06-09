@@ -5,7 +5,7 @@
 #'
 #' @keywords internal
 #' @noRd
-caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv, b,
+caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv,
                      filter.thresh = 0.05, fdr.nominal = 0.20, adjust.method = "BH",
                      regularize=TRUE, test.method="rank", n.cores=1L,
                      return.mr.resid = FALSE) {
@@ -97,14 +97,6 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv, b,
     } else {
       betahat.median = ICSNP::HR.Mest(as.matrix(beta.est) %*% t(Gamma), na.action=na.omit)$center
     }
-    if (is.null(b)) {
-      b.null <- as.numeric(betahat.median)
-    } else {
-      b.null <- as.numeric(b)
-      if (length(b.null) != n.test) {
-        stop("Length of b must equal the number of rows of Gamma.")
-      }
-    }
     if (n.test==n.param) Lambda=NULL
 
     res_phase2 <- foreach(
@@ -127,7 +119,7 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv, b,
         y = tstar, delta = delta.1, x = x,
         Gamma = Gamma, Lambda = Lambda,
         Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-        b = b.null, beta = NULL,
+        b = betahat.median, beta = NULL,
         test = TRUE, regularize = regularize, tol = 1e-12
       ), silent = TRUE)
 
@@ -240,14 +232,6 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv, b,
     }else {
       betahat.median = ICSNP::HR.Mest(as.matrix(beta.est) %*% t(Gamma), na.action=na.omit)$center
     }
-    if (is.null(b)) {
-      b.null <- as.numeric(betahat.median)
-    } else {
-      b.null <- as.numeric(b)
-      if (length(b.null) != n.test) {
-        stop("Length of b must equal the number of rows of Gamma.")
-      }
-    }
     if (n.test==n.param) Lambda=NULL
 
     rank.teststat <- df.rank.pen <- rep(NA, n.taxa)
@@ -262,7 +246,7 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv, b,
           y = tstar, delta = delta.1, x = x,
           Gamma = Gamma, Lambda = Lambda,
           Gamma.ginv = Gamma.ginv, Lambda.ginv = Lambda.ginv,
-          b = b.null,
+          b = betahat.median,
           beta = NULL, test = TRUE,
           regularize = regularize, tol = 10^-12
         ))
@@ -307,7 +291,6 @@ caft_fit <- function(otu.table, x, Gamma, Gamma.ginv, Lambda, Lambda.ginv, b,
   out <- list(
     beta.est = beta.est,
     betahat.median = betahat.median,
-    b.null = b.null,
     rank.teststat = rank.teststat,
     rank.teststat.norm = rank.teststat.norm,
     skip.otu = skip.rare,

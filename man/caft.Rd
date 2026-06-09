@@ -10,37 +10,48 @@ caft(
   x.adj = NULL,
   x = NULL,
   Gamma = NULL,
+  b = NULL,
   filter.thresh = 0.05,
   fdr.nominal = 0.2,
   adjust.method = "BH",
   regularize = TRUE,
   test.method = "rank",
   n.cores = 1L,
-  perm.B = 0L,
-  perm.parallel = FALSE,
-  perm.n.cores = 1L,
-  perm.seed = NULL,
+  boot.B = 0L,
+  boot.parallel = FALSE,
+  boot.n.cores = 1L,
+  boot.seed = NULL,
+  boot.return.dist = FALSE,
+  verbose = FALSE,
   return.mr.resid = FALSE
 )
 }
 \arguments{
-\item{otu.table}{the community OTU table (or taxa count table). Each row
+\item{otu.table}{The community OTU table (or taxa count table). Each row
 corresponds to a sample and each column corresponds to one OTU (taxa).}
 
-\item{x.test}{the covariates are of interest. It can be a vector, matrix, or
-data frame. All K-level categorical variables should be converted to K-1
-indicator variables before input.  Use if default Gamma is desired.}
+\item{x.test}{Covariate(s) of interest. This can be a vector, matrix, or data
+frame. Multi-level categorical variables should be coded as indicator
+variables before input. Use \code{x.test} together with \code{x.adj} when
+the default hypothesis matrix \code{Gamma} is desired.}
 
-\item{x.adj}{other covariates that need to be adjusted. Requirements are the
+\item{x.adj}{Covariates that need to be adjusted. Requirements are the
 same as \code{x.test} above.  Use if default Gamma is desired.}
 
-\item{x}{data for all covariates.  Default value is \code{NULL}. Only used
+\item{x}{Optional design matrix containing all covariates.
+Default value is \code{NULL}. Only used
 if matrix \code{Gamma} is provided as input. It can be a vector, matrix,
 or dataframe. All K-level categorical variables should be converted to K-1
 indicator variables before input.}
 
-\item{Gamma}{matrix to specify what hypothesis to test.  Not used if data are
-entered as \code{x.test} and \code{x.adj}.}
+\item{Gamma}{Optional hypothesis matrix specifying the linear combinations
+of regression coefficients to be tested.  Not used if data are entered as
+\code{x.test} and \code{x.adj}.}
+
+\item{b}{Optional numeric vector specifying the right-hand side of the null
+hypothesis \eqn{H_0: \Gamma \beta_j = b}. Its length must equal the number
+of rows of \code{Gamma}. If \code{b = NULL}, CAFT uses the median-based
+null value estimated across taxa.}
 
 \item{filter.thresh}{a real value between 0 and 1 for OTU table sample
 presence filtering. Any OTUs present in fewer than \code{filter.thresh}
@@ -68,19 +79,28 @@ runs tasks in parallel using \code{foreach}/\code{doParallel} with a PSOCK
 cluster. On typical desktops/laptops, a good choice is
 \code{max(1L, parallel::detectCores() - 1L)}.}
 
-\item{perm.B}{Integer. Number of permutations used for empirical calibration
-of taxon-level p-values. Default is \code{0L}, which disables permutation
-and returns the original CAFT asymptotic results only.}
+\item{boot.B}{Integer. Number of bootstrap replicates used for empirical
+calibration of taxon-level p-values. The default is \code{0L}, which
+disables bootstrap calibration. At least two bootstrap replicates are
+required for bootstrap calibration.}
 
-\item{perm.parallel}{Logical; if \code{TRUE} and \code{perm.B > 0}, the
-permutation loop is parallelized across outer workers. Default is
+\item{boot.parallel}{Logical. If \code{TRUE} and \code{boot.B >= 2}, the
+bootstrap loop is parallelized over bootstrap replicates. The default is
 \code{FALSE}.}
 
-\item{perm.n.cores}{Integer. Number of CPU cores used for outer permutation
-parallelization when \code{perm.parallel = TRUE}. Default is \code{1L}.}
+\item{boot.n.cores}{Integer. Number of CPU cores used for outer bootstrap
+parallelization when \code{boot.parallel = TRUE}. The default is
+\code{1L}.}
 
-\item{perm.seed}{Optional integer random seed for reproducible permutations.
-Default is \code{NULL}.}
+\item{boot.seed}{Optional integer seed for reproducible bootstrap resampling.
+The default is \code{NULL}.}
+
+\item{boot.return.dist}{Logical. If \code{TRUE}, return the bootstrap-centered
+beta distribution and the names of taxa used in the bootstrap calibration.
+The default is \code{FALSE}.}
+
+\item{verbose}{Logical. If \code{TRUE}, progress messages are shown during
+bootstrap computation. The default is \code{FALSE}.}
 
 \item{return.mr.resid}{Logical; if \code{TRUE}, return subject-level
 residual contribution matrices from the observed CAFT fit. Default is
@@ -98,6 +118,9 @@ the number of covariates from \code{x.test} and \code{x.adj}.}
 restricted score test of the significance of differential abundant OTU. It can
 also be used to calculated the effect size of each OTU, defined as the difference
 from the median of all betas.}
+\item{b.null}{The null value actually used in the restricted score test. This
+equals \code{betahat.median} when \code{b = NULL}, and equals the
+user-specified \code{b} otherwise.}
 \item{rank.teststat}{test statistics from the proposed score test}
 \item{rank.teststat.norm}{Numeric matrix with the normalized (z-score)
 rank-based test statistics for each taxon (rows) and each tested contrast
@@ -120,21 +143,35 @@ individual OTU association tests}
 \item{q.detected.otu}{detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR
 based on \code{q.otu}}
-\item{MR.resid}{Returned only when \code{return.mr.resid = TRUE}. A list of
+\item{p.boot}{Bootstrap-calibrated empirical beta-tilde p-values. If
+\code{boot.B < 2}, this is a named vector of \code{NA} values.}
+\item{q.boot}{Multiplicity-adjusted values from \code{p.boot}.}
+\item{p.boot.detected.otu}{Taxa detected using \code{p.boot < fdr.nominal}.
+Empty if bootstrap calibration is not run.}
+\item{q.boot.detected.otu}{Taxa detected using
+\code{q.boot < fdr.nominal}. Empty if bootstrap calibration is not run.}
+\item{p.boot.chi}{Studentized chi-square/Wald bootstrap p-values. For
+multiple testing variables, these are the same as \code{p.boot}. If
+\code{boot.B < 2}, this is a named vector of \code{NA} values.}
+\item{q.boot.chi}{Multiplicity-adjusted values from \code{p.boot.chi}.}
+\item{p.boot.chi.detected.otu}{Taxa detected using
+\code{p.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}
+\item{q.boot.chi.detected.otu}{Taxa detected using
+\code{q.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}
+\item{boot.median}{Matrix of bootstrap null values used to center the
+bootstrap coefficient estimates. When \code{b} is user-specified, these
+values equal the specified null value across bootstrap replicates.}
+\item{boot.n.success}{Number of bootstrap replicates that produced complete
+bootstrap null values.}
+\item{boot.n.fail}{Number of bootstrap replicates skipped or failed.}
+\item{boot.beta.tilde}{Returned only when \code{boot.return.dist = TRUE}.
+Array of bootstrap-centered tested coefficient contrasts.}
+\item{boot.taxa}{Returned only when \code{boot.return.dist = TRUE}. Names of
+taxa used in the bootstrap calibration.}
+\item{mr.resid}{Returned only when \code{return.mr.resid = TRUE}. A list of
 length equal to the number of taxa. Each element is an \eqn{n \times p}
 matrix of subject-level compensated Cox-type residual (Martingale residual)
 contributions, evaluated at the restricted estimate used in the score test.}
-\item{p.perm}{Empirical taxon-level p-values from the permutation
-distribution. Returned only when \code{perm.B > 0}.}
-\item{p.perm.detected.otu}{detected significantly differential abundant taxa
-(denoted by the column names of the OTU table) at the nominal FDR based on
-\code{p.perm}}
-\item{q.perm}{Multiplicity-adjusted empirical p-values obtained from
-\code{p.adjust(p.perm, method = adjust.method)}. Returned only when
-\code{perm.B > 0}.}
-\item{q.perm.detected.otu}{detected significantly differential abundant taxa
-(denoted by the column names of the OTU table) at the nominal FDR based on
-\code{q.perm}.}
 }
 }
 \description{
@@ -147,35 +184,46 @@ inherently resistant to multiplicative bias, eliminates the need for
 pseudocounts, and addresses compositional bias through the
 establishment of appropriate score test procedures.
 
-In addition to the original asymptotic CAFT inference, this version optionally
-provides permutation-based calibration of taxon-level p-values. When
-permutation is requested, the tested covariate is first residualized against
-the adjustment covariates, and empirical p-values are computed from permuted
-test statistics.
+In addition to the default asymptotic CAFT inference, the function optionally
+provides bootstrap calibration of taxon-level p-values. Bootstrap calibration
+is mainly intended as a sensitivity analysis or preferred calibration method
+when the number of taxa is small in the data set.
 }
 \details{
-If \code{perm.B > 0}, the function first fits the observed CAFT model using
-the residualized tested covariate when adjustment covariates are present, and
-otherwise using the original tested covariate. It then permutes the rows of
-the tested covariate, refits the model for each permutation, and computes
-empirical p-values by comparing the observed test statistic to its
-permutation distribution. Because permutation calibration can be
-computationally expensive, it is recommended primarily when the number of
-OTUs is not too large, for example fewer than 50.
+CAFT fits a rank-based accelerated failure time model to the negative
+log-relative abundance of each taxon, treating zero counts as censored values
+below the sample-specific detection limit. The resulting taxon-specific
+regression coefficients are compared through compositional contrasts.
 
-When \code{perm.parallel = TRUE}, outer permutation workers are used. To avoid
-nested parallelism, the internal CAFT fitting routine is forced to run in
-single-thread mode inside each permutation worker.
+With the default \code{x.test}/\code{x.adj} interface, the function tests the
+covariates in \code{x.test} while adjusting for the covariates in
+\code{x.adj}. Internally, this corresponds to a default hypothesis matrix
+\code{Gamma} selecting the columns of \code{x.test}. For more general
+hypotheses, users may provide a full design matrix \code{x}, a hypothesis
+matrix \code{Gamma}, and optionally a null value \code{b}, corresponding to
+\eqn{H_0: \Gamma \beta_j = b}. If \code{b = NULL}, the null value is estimated
+as the median-based reference across taxa.
 
-Permutation mode is intended for the \code{x.test}/\code{x.adj} interface.
-If \code{x} and \code{Gamma} are supplied directly, users should ensure that
-the tested component being permuted is well defined.
+When \code{boot.B >= 2}, CAFT performs fixed-design bootstrap calibration.
+The observed model is first fit, and the bootstrap is carried out on the taxa
+that pass the original filtering step. In each bootstrap replicate, samples
+are resampled with replacement from the OTU table while the covariates are
+kept fixed. The model is then refit with \code{filter.thresh = 0} on the same
+set of taxa. Bootstrap p-values are computed from the centered bootstrap
+distribution of the tested coefficient contrasts. For a single testing
+variable, both a two-sided empirical beta-tilde p-value and a studentized
+chi-square/Wald bootstrap p-value are returned. For multiple testing
+variables, the bootstrap p-value is based on a multivariate statistic;
+in this case \code{p.boot} and \code{p.boot.chi} are identical.
+
+If \code{boot.parallel = TRUE}, the outer bootstrap loop is parallelized over
+bootstrap replicates. To avoid nested parallelism, the inner CAFT fitting
+routine is run with \code{n.cores = 1L} inside each bootstrap worker.
 }
 \examples{
 \donttest{
 library(CAFT)
 data(Colon)
-
 library(phyloseq)
 
 count.tab <- t(as.data.frame(as.matrix(otu_table(Colon))))
@@ -183,12 +231,12 @@ sample.tab <- as.data.frame(as.matrix(sample_data(Colon)))
 
 pNA <- which(is.na(sample.tab$age))
 if (length(pNA) > 0) {
-  count.tab <- count.tab[-pNA, ]
-  sample.tab <- sample.tab[-pNA, ]
+  count.tab <- count.tab[-pNA, , drop = FALSE]
+  sample.tab <- sample.tab[-pNA, , drop = FALSE]
 }
 
 p_otu <- which(rowSums(t(count.tab) > 0) > 1)
-count.tab <- count.tab[, p_otu]
+count.tab <- count.tab[, p_otu, drop = FALSE]
 
 Disease1 <- Disease2 <- rep(0, NROW(sample.tab))
 Disease1[sample.tab$disease == "CRC"] <- 1
@@ -197,21 +245,35 @@ Disease2[sample.tab$disease == "adenoma"] <- 1
 Age <- as.numeric(sample.tab$age)
 Gender <- as.numeric(factor(sample.tab$gender)) - 1
 
-x.test <- cbind(Disease1, Disease2)
-x.adj  <- cbind(Age, Gender)
+x.test <- cbind(CRC = Disease1, adenoma = Disease2)
+x.adj <- cbind(Age = Age, Gender = Gender)
 
-## CAFT analysis
-res.CAFT <- caft(otu.table = count.tab, x.test = x.test, x.adj = x.adj)
+## Default CAFT analysis
+res.CAFT <- caft(
+  otu.table = count.tab,
+  x.test = x.test,
+  x.adj = x.adj
+)
 
-## permutation-calibrated CAFT analysis can be slow
-
-res.CAFT.perm <- caft(
+## Bootstrap-calibrated CAFT analysis; use a small B for examples only.
+res.CAFT.boot <- caft(
   otu.table = count.tab,
   x.test = x.test,
   x.adj = x.adj,
-  perm.B = 3,
-  perm.parallel = FALSE,
-  perm.seed = 1
+  boot.B = 10,
+  boot.parallel = FALSE,
+  boot.seed = 1
+)
+
+## User-specified linear hypothesis using x, Gamma, and b.
+x.all <- cbind(CRC = Disease1, adenoma = Disease2, Age = Age, Gender = Gender)
+Gamma <- matrix(c(1, -1, 0, 0), nrow = 1)
+
+res.CAFT.gamma <- caft(
+  otu.table = count.tab,
+  x = x.all,
+  Gamma = Gamma,
+  b = 0
 )
 }
 }

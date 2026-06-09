@@ -189,7 +189,8 @@ grad.J.n = function(par, y, delta, x, Gamma, Lambda, Gamma.ginv, Lambda.ginv, n.
 test.rank.aft = function(est.rank.res, score='rank') {
 
   if (!(score %in% c('Cox','rank','martingale')) ) {
-    stop('Error - score must either be Cox or rank or martingale')
+    print('Error - score must either be Cox or rank or martingale')
+    return()
   }
 
   y=est.rank.res$y

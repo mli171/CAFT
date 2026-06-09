@@ -2,11 +2,11 @@ Package: CAFT
 Type: Package
 Title: Rank-Based Compositional Analysis using Log-Linear Models for Microbiome Data with Zero Cells
 Version: 0.1.0
-Date: 2025-04-10
+Date: 2026-06-09
 Authors@R: c(person("Glen A.", "Satten", email="gsatten@emory.edu", role=c("aut", "ctb", "cph")),
              person("Mo", "Li", email="mo.li@louisiana.edu", role=c("aut", "ctb", "cre", "cph")),
 	           person("Ni", "Zhao", role=c("aut", "ctb", "cph")))
-Description: High-throughput sequencing has significantly improved our understanding of microbiome communities and their impacts on biological processes and human health. While statistical methods have been developed to address the unique characteristics of microbiome datasets, varying biases among taxa continue to pose challenges for the standardization of experimental results and the inference of individual taxa biases. Traditional methods, such as log-linear models, often require adding pseudo counts to manage zero counts, which can introduce bias and affect outcomes, especially when zeros correlate with the variable of interest. To tackle these challenges, we propose a new approach that treats zero counts as censored observations, aligning with methods used in other fields dealing with data below detection limits. Our method provides a novel and effective solution for analyzing compositional microbiome data, enabling unbiased estimation and valid inference even in the presence of data sparsity and experimental biases.
+Description: Provides rank-based compositional differential abundance analysis for microbiome count data with zero cells using the compositional accelerated failure time model of Satten, Li and Zhao (2025) "CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells" <doi:10.1101/2025.11.26.690468>. Zero counts are treated as censored observations below sample-specific detection limits, avoiding the use of pseudocounts. The package implements estimation and hypothesis testing procedures for assessing associations between microbial taxa and covariates while accounting for the compositional structure of sequencing count data. It supports taxon-level differential abundance analysis, estimation of regression effects under censoring induced by detection limits, and inference based on rank-based methods that remain applicable in the presence of excess zeros. Functions are provided for model fitting, significance testing, extraction of effect estimates, and summarization of results across taxa. The package also provides optional bootstrap calibration of taxon-level p-values for sensitivity analysis in small-taxon settings.
 Imports:
     doParallel,
     doRNG,

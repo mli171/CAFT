@@ -10,7 +10,7 @@ knitr::opts_chunk$set(
 library(CAFT)
 
 ## ----eval=FALSE---------------------------------------------------------------
-# pak::pak("CAFT_1.0.tar.gz") # local directory
+# pak::pak("CAFT_0.1.0.tar.gz") # local directory
 
 ## ----eval=FALSE---------------------------------------------------------------
 # remotes::install_github("mli171/CAFT", dependencies = TRUE)

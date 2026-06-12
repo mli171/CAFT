@@ -36,7 +36,7 @@ variables before input. Use \code{x.test} together with \code{x.adj} when
 the default hypothesis matrix \code{Gamma} is desired.}
 
 \item{x.adj}{Covariates that need to be adjusted. Requirements are the
-same as \code{x.test} above.  Use if default Gamma is desired.}
+same as \code{x.test} above. Use if default \code{Gamma} is desired.}
 
 \item{x}{Optional design matrix containing all covariates.
 Default value is \code{NULL}. Only used
@@ -45,7 +45,7 @@ or dataframe. All K-level categorical variables should be converted to K-1
 indicator variables before input.}
 
 \item{Gamma}{Optional hypothesis matrix specifying the linear combinations
-of regression coefficients to be tested.  Not used if data are entered as
+of regression coefficients to be tested. Not used if data are entered as
 \code{x.test} and \code{x.adj}.}
 
 \item{b}{Optional numeric vector specifying the right-hand side of the null
@@ -53,25 +53,27 @@ hypothesis \eqn{H_0: \Gamma \beta_j = b}. Its length must equal the number
 of rows of \code{Gamma}. If \code{b = NULL}, CAFT uses the median-based
 null value estimated across taxa.}
 
-\item{filter.thresh}{a real value between 0 and 1 for OTU table sample
+\item{filter.thresh}{A real value between 0 and 1 for OTU table sample
 presence filtering. Any OTUs present in fewer than \code{filter.thresh}
 proportion of samples are filtered out. We set the default to be 0.05.}
 
-\item{fdr.nominal}{the nominal false discover rate (FDR). The default is 0.2.}
+\item{fdr.nominal}{The nominal false discovery rate (FDR). The default is
+\code{0.20}.}
 
-\item{adjust.method}{a character string. Use multiple comparison/testing
-adjustment methods to control the family-wise error rate/false discover
-rate. Default to "\code{BH}". See \code{\link{p.adjust}} for the details.}
+\item{adjust.method}{A character string. Use multiple comparison/testing
+adjustment methods to control the family-wise error rate/false discovery
+rate. Default is \code{"BH"}. See \code{\link{p.adjust}} for the details.}
 
-\item{regularize}{a logical value. If TRUE, adds a small penalty to the
-rank-based score to stabilize estimation and reduce small-sample
-bias.  Use this when the unpenalized rank equations have flat directions,
-there is near-separation, heavy censoring/ties, or the optimizer fails
-to converge. Default is TRUE.}
+\item{regularize}{A logical value. If \code{TRUE}, adds a small penalty to the
+rank-based score to stabilize estimation and reduce small-sample bias. Use
+this when the unpenalized rank equations have flat directions, there is
+near-separation, heavy censoring/ties, or the optimizer fails to converge.
+Default is \code{TRUE}.}
 
-\item{test.method}{a character string. The variance estimator used to estimate
-the variance of the score equation. The methods of 'Cox', 'rank', and
-'martingale' are available. Default is 'rank'.}
+\item{test.method}{A character string. The variance estimator used to estimate
+the variance of the score equation. The methods of \code{"Cox"},
+\code{"rank"}, and \code{"martingale"} are available. Default is
+\code{"rank"}.}
 
 \item{n.cores}{Integer. Number of CPU cores to use for parallel computation.
 Default is \code{1} (no parallelism). If \code{n.cores > 1}, the function
@@ -115,36 +117,48 @@ Return a list consisting of
 each OTU count to the log-linear model. The number of columns should match
 the number of covariates from \code{x.test} and \code{x.adj}.}
 \item{betahat.median}{The selected median of all betas, which was used in the
-restricted score test of the significance of differential abundant OTU. It can
-also be used to calculated the effect size of each OTU, defined as the difference
-from the median of all betas.}
+restricted score test of the significance of differential abundant OTU. It
+can also be used to calculate the effect size of each OTU, defined as the
+difference from the median of all betas.}
 \item{b.null}{The null value actually used in the restricted score test. This
 equals \code{betahat.median} when \code{b = NULL}, and equals the
 user-specified \code{b} otherwise.}
-\item{rank.teststat}{test statistics from the proposed score test}
-\item{rank.teststat.norm}{Numeric matrix with the normalized (z-score)
-rank-based test statistics for each taxon (rows) and each tested contrast
-(columns, in the order of \code{Gamma}'s rows). Under the null, entries are
-approximately \eqn{N(0,1)}; larger absolute values indicate stronger
-evidence against the null. Though the per-taxon p-values used for FDR control
-already be provided through \code{rank.teststat} and \code{p.otu}.}
-\item{skip.otu}{the names of skipped OTU during taxa presence filtering
-above}
-\item{p.otu}{p-values for individual OTU association tests}
+\item{b.user.specified}{Logical indicator of whether \code{b} was supplied
+by the user. If \code{FALSE}, \code{b.null} was computed as the
+median-based reference value. If \code{TRUE}, \code{b.null} equals the
+user-specified null value.}
+\item{b.user}{The user-specified null value, returned only when \code{b} is
+supplied. Otherwise \code{NULL}.}
+\item{rank.teststat}{Test statistics from the proposed score test.}
+\item{rank.teststat.norm}{Numeric matrix with the normalized rank-based test
+statistics for each taxon (rows) and each tested contrast (columns, in the
+order of \code{Gamma}'s rows). Under the null, entries are approximately
+\eqn{N(0,1)}; larger absolute values indicate stronger evidence against the
+null.}
+\item{skip.otu}{The names of skipped OTU during taxa presence filtering.}
+\item{skip.rare}{Indicator for taxa skipped by the rarity filter.}
+\item{skip.fail.rank.fit.pen}{Indicator for taxa whose unrestricted
+rank-based fit failed.}
+\item{skip.fail.rank.test.pen}{Indicator for taxa whose restricted
+estimation or rank-based score test failed.}
+\item{fit.error.messages}{Error messages from failed unrestricted
+taxon-level fits, if any.}
+\item{fit.error.messages.test}{Error messages from failed restricted
+taxon-level tests, if any.}
+\item{p.otu}{P-values for individual OTU association tests.}
 \item{df.test}{Degrees of freedom per taxon in the test.}
 \item{beta.est.r}{Matrix of constrained (restricted) estimates from the
 restricted score test.}
-\item{p.detected.otu}{detected significantly differential abundant taxa
+\item{p.detected.otu}{Detected significantly differential abundant taxa
 (denoted by the column names of the OTU table) at the nominal FDR based on
-\code{p.otu}}
-\item{q.otu}{q-values comes from adjusting p-values by the Bonferroni
-correction or the adjustment method specified in \code{adjust.method}. For
-individual OTU association tests}
-\item{q.detected.otu}{detected significantly differential abundant taxa
-(denoted by the column names of the OTU table) at the nominal FDR
-based on \code{q.otu}}
+\code{p.otu}.}
+\item{q.otu}{Q-values from adjusting p-values by the method specified in
+\code{adjust.method}, for individual OTU association tests.}
+\item{q.detected.otu}{Detected significantly differential abundant taxa
+(denoted by the column names of the OTU table) at the nominal FDR based on
+\code{q.otu}.}
 \item{p.boot}{Bootstrap-calibrated empirical beta-tilde p-values. If
-\code{boot.B < 2}, this is a named vector of \code{NA} values.}
+\code{boot.B < 2}, this is not returned.}
 \item{q.boot}{Multiplicity-adjusted values from \code{p.boot}.}
 \item{p.boot.detected.otu}{Taxa detected using \code{p.boot < fdr.nominal}.
 Empty if bootstrap calibration is not run.}
@@ -152,7 +166,7 @@ Empty if bootstrap calibration is not run.}
 \code{q.boot < fdr.nominal}. Empty if bootstrap calibration is not run.}
 \item{p.boot.chi}{Studentized chi-square/Wald bootstrap p-values. For
 multiple testing variables, these are the same as \code{p.boot}. If
-\code{boot.B < 2}, this is a named vector of \code{NA} values.}
+\code{boot.B < 2}, this is not returned.}
 \item{q.boot.chi}{Multiplicity-adjusted values from \code{p.boot.chi}.}
 \item{p.boot.chi.detected.otu}{Taxa detected using
 \code{p.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}
@@ -170,12 +184,12 @@ Array of bootstrap-centered tested coefficient contrasts.}
 taxa used in the bootstrap calibration.}
 \item{mr.resid}{Returned only when \code{return.mr.resid = TRUE}. A list of
 length equal to the number of taxa. Each element is an \eqn{n \times p}
-matrix of subject-level compensated Cox-type residual (Martingale residual)
-contributions, evaluated at the restricted estimate used in the score test.}
+matrix of subject-level compensated Cox-type residual contributions,
+evaluated at the restricted estimate used in the score test.}
 }
 }
 \description{
-This is a novel statistical framework for differential abundance
+This is a statistical framework for differential abundance
 analysis of microbiome data, termed the Compositional Accelerated Failure
 Time (CAFT) model. The CAFT model addresses zero read counts by treating
 them as censored observations below the detection limit, similar to
@@ -204,6 +218,13 @@ matrix \code{Gamma}, and optionally a null value \code{b}, corresponding to
 \eqn{H_0: \Gamma \beta_j = b}. If \code{b = NULL}, the null value is estimated
 as the median-based reference across taxa.
 
+This wrapper implements the refactored CAFT workflow. It first calls
+\code{caft_estimate()} to compute unrestricted taxon-level estimates, then
+calls \code{caft_test()} to perform the restricted score test. If
+\code{boot.B >= 2}, it further calls \code{caft_bootstrap()} for bootstrap
+calibration. This separation allows the unrestricted estimates to be reused
+when testing different hypotheses or different choices of \code{b}.
+
 When \code{boot.B >= 2}, CAFT performs fixed-design bootstrap calibration.
 The observed model is first fit, and the bootstrap is carried out on the taxa
 that pass the original filtering step. In each bootstrap replicate, samples
@@ -221,24 +242,31 @@ bootstrap replicates. To avoid nested parallelism, the inner CAFT fitting
 routine is run with \code{n.cores = 1L} inside each bootstrap worker.
 }
 \examples{
-\donttest{
-library(CAFT)
 data(Colon)
-library(phyloseq)
 
-count.tab <- t(as.data.frame(as.matrix(otu_table(Colon))))
-sample.tab <- as.data.frame(as.matrix(sample_data(Colon)))
+count.tab <- t(as(phyloseq::otu_table(Colon), "matrix"))
+sample.tab <- as(phyloseq::sample_data(Colon), "data.frame")
 
-pNA <- which(is.na(sample.tab$age))
-if (length(pNA) > 0) {
-  count.tab <- count.tab[-pNA, , drop = FALSE]
-  sample.tab <- sample.tab[-pNA, , drop = FALSE]
-}
+keep.sample <- !is.na(sample.tab$age)
+count.tab <- count.tab[keep.sample, , drop = FALSE]
+sample.tab <- sample.tab[keep.sample, , drop = FALSE]
 
-p_otu <- which(rowSums(t(count.tab) > 0) > 1)
-count.tab <- count.tab[, p_otu, drop = FALSE]
+keep.otu <- colSums(count.tab > 0) > 1
+count.tab <- count.tab[, keep.otu, drop = FALSE]
 
-Disease1 <- Disease2 <- rep(0, NROW(sample.tab))
+## Use a small subset of taxa for a fast example.
+prev <- colSums(count.tab > 0)
+keep.top <- names(sort(prev, decreasing = TRUE))[
+  seq_len(min(20L, length(prev)))
+]
+count.tab <- count.tab[, keep.top, drop = FALSE]
+
+## Remove samples with zero library size after subsetting taxa.
+keep.lib <- rowSums(count.tab) > 0
+count.tab <- count.tab[keep.lib, , drop = FALSE]
+sample.tab <- sample.tab[keep.lib, , drop = FALSE]
+
+Disease1 <- Disease2 <- rep(0, nrow(sample.tab))
 Disease1[sample.tab$disease == "CRC"] <- 1
 Disease2[sample.tab$disease == "adenoma"] <- 1
 
@@ -248,32 +276,37 @@ Gender <- as.numeric(factor(sample.tab$gender)) - 1
 x.test <- cbind(CRC = Disease1, adenoma = Disease2)
 x.adj <- cbind(Age = Age, Gender = Gender)
 
-## Default CAFT analysis
-res.CAFT <- caft(
+## Standard CAFT wrapper.
+res <- caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+head(res$p.otu)
+res$q.detected.otu
+
+## Separated estimation and testing workflow.
+est <- caft_estimate(
   otu.table = count.tab,
   x.test = x.test,
   x.adj = x.adj
 )
 
-## Bootstrap-calibrated CAFT analysis; use a small B for examples only.
-res.CAFT.boot <- caft(
+test <- caft_test(est)
+head(test$p.otu)
+
+## Reuse the same unrestricted estimates with a user-specified null value.
+test.b0 <- caft_test(est, b = c(0, 0))
+test.b0$b.null
+
+\donttest{
+## Bootstrap calibration with a small number of replicates for illustration.
+res.boot <- caft(
   otu.table = count.tab,
   x.test = x.test,
   x.adj = x.adj,
-  boot.B = 10,
-  boot.parallel = FALSE,
-  boot.seed = 1
+  b = c(0, 0),
+  boot.B = 2L,
+  boot.seed = 1L
 )
 
-## User-specified linear hypothesis using x, Gamma, and b.
-x.all <- cbind(CRC = Disease1, adenoma = Disease2, Age = Age, Gender = Gender)
-Gamma <- matrix(c(1, -1, 0, 0), nrow = 1)
-
-res.CAFT.gamma <- caft(
-  otu.table = count.tab,
-  x = x.all,
-  Gamma = Gamma,
-  b = 0
-)
+res.boot$boot.n.success
+head(res.boot$p.boot)
 }
 }

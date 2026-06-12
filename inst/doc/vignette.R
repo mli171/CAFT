@@ -22,9 +22,27 @@ library(CAFT)
 # vignette("vignette", package = "CAFT")
 
 ## ----eval=FALSE---------------------------------------------------------------
-# caft(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
-#   filter.thresh = 0.05, fdr.nominal = 0.2, adjust.method = "BH",
-#   regularize = TRUE, n.cores = 1L)
+# caft(
+#   otu.table,
+#   x.test = NULL,
+#   x.adj = NULL,
+#   x = NULL,
+#   Gamma = NULL,
+#   b = NULL,
+#   filter.thresh = 0.05,
+#   fdr.nominal = 0.20,
+#   adjust.method = "BH",
+#   regularize = TRUE,
+#   test.method = "rank",
+#   n.cores = 1L,
+#   boot.B = 0L,
+#   boot.parallel = FALSE,
+#   boot.n.cores = 1L,
+#   boot.seed = NULL,
+#   boot.return.dist = FALSE,
+#   verbose = FALSE,
+#   return.mr.resid = FALSE
+# )
 
 ## -----------------------------------------------------------------------------
 data("URT")
@@ -99,14 +117,35 @@ Disease2[sample.tab$disease == "adenoma"] = 1
 Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
 
-x.test = cbind(Disease1, Disease2)
-x.adj  = cbind(Age, Gender)
+x.test = cbind(CRC = Disease1, adenoma = Disease2)
+x.adj  = cbind(Age = Age, Gender = Gender)
+
+## -----------------------------------------------------------------------------
+est.CAFT = caft_estimate(otu.table=count.tab, x.test=x.test, x.adj=x.adj, filter.thresh=0.05, regularize=TRUE, n.cores=1L) 
+print(est.CAFT) 
+head(est.CAFT$beta.est) 
+est.CAFT$default.Gamma
+
+## -----------------------------------------------------------------------------
+test.CAFT = caft_test(est.CAFT, fdr.nominal=0.20, adjust.method="BH") 
+print(test.CAFT) 
+test.CAFT$betahat.median 
+test.CAFT$b.null 
+test.CAFT$q.detected.otu
+
+## -----------------------------------------------------------------------------
+test.CAFT.b0 = caft_test(est.CAFT, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
+print(test.CAFT.b0) 
+test.CAFT.b0$b.null 
+test.CAFT.b0$b.user.specified 
+test.CAFT.b0$q.detected.otu
 
 ## -----------------------------------------------------------------------------
 res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+res.CAFT$q.detected.otu
 
 ## ----eval=FALSE---------------------------------------------------------------
-# res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=4)
+# res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
 
 ## -----------------------------------------------------------------------------
 x = cbind(x.test, x.adj)
@@ -118,6 +157,15 @@ res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
 Gamma = matrix(c(1,1,-1,0,0,0,0,0), nrow=2, ncol=4)
 Gamma
 res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
+
+## ----eval=FALSE---------------------------------------------------------------
+# res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, boot.B=1000, boot.seed=1)
+# res.CAFT.boot$q.boot.detected.otu
+# res.CAFT.boot$q.boot.chi.detected.otu
+
+## ----eval=FALSE---------------------------------------------------------------
+# res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj,
+#   boot.B=1000, boot.parallel=TRUE, boot.n.cores=2, boot.seed=1)
 
 ## -----------------------------------------------------------------------------
 sessionInfo()

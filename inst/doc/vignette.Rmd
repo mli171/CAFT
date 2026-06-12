@@ -64,16 +64,34 @@ vignette("vignette", package = "CAFT")
 The main function in CAFT package is 
 
 ```{r, eval=FALSE}
-caft(otu.table, x.test = NULL, x.adj = NULL, x = NULL, Gamma = NULL,
-  filter.thresh = 0.05, fdr.nominal = 0.2, adjust.method = "BH",
-  regularize = TRUE, n.cores = 1L)
+caft(
+  otu.table,
+  x.test = NULL,
+  x.adj = NULL,
+  x = NULL,
+  Gamma = NULL,
+  b = NULL,
+  filter.thresh = 0.05,
+  fdr.nominal = 0.20,
+  adjust.method = "BH",
+  regularize = TRUE,
+  test.method = "rank",
+  n.cores = 1L,
+  boot.B = 0L,
+  boot.parallel = FALSE,
+  boot.n.cores = 1L,
+  boot.seed = NULL,
+  boot.return.dist = FALSE,
+  verbose = FALSE,
+  return.mr.resid = FALSE
+)
 ```
 
-## Example data sets illustration
+# Example data sets illustration
 
 To illustrate the package usage, we used two filtered data sets, `URT` originally from [1] and obtained from R package **LOCOM** [2] and `Colon` from R package **curatedMetagenomicData** [3] (The **curatedMetagenomicData** package installation is required through **Bioconductor**. ). The processed microbiome data sets can be loaded directly from **CAFT** package.
 
-### Binary outcome phenotypes example
+## Binary outcome phenotypes example
 
 The example URT microbiome data set, originates from a subset of the study (only left oropharyngeal observations) by [1]. We followed the same filtering steps as in LOCOM [2], excluded three samples from individuals who had used antibiotics within three months prior to sample collection, and subset both the OTU count and taxonomy tables accordingly. The filtered OTU table have 57 rows (samples) and 856 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 89.35%.
 
@@ -95,6 +113,7 @@ mean(cens.prop)
 ```
 
 Setting `filter.thresh = 0.10` and `fdr.nominal = 0.10`, we conduct the taxa differential abundant analysis via: 
+
 ```{r}
 x.test = ifelse(throat.meta.filter$SmokingStatus == "NonSmoker", 0, 1)
 x.adj  = ifelse(throat.meta.filter$Sex == "Male", 0, 1)
@@ -123,7 +142,7 @@ otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter,
 ```
 
 
-### Multicategory outcome phenotypes example
+## Multicategory outcome phenotypes example
 
 This `Colon` data were modified through package **curatedMetagenomicData** [3] on Bioconductor by subsetting samples. Specifically, we retained only adult participants, stool specimens, and samples with disease status labeled as colorectal cancer (CRC), adenoma, or healthy.
 
@@ -177,19 +196,64 @@ Disease2[sample.tab$disease == "adenoma"] = 1
 Age = as.numeric(sample.tab$age)
 Gender = as.numeric(factor(sample.tab$gender)) - 1
 
-x.test = cbind(Disease1, Disease2)
-x.adj  = cbind(Age, Gender)
+x.test = cbind(CRC = Disease1, adenoma = Disease2)
+x.adj  = cbind(Age = Age, Gender = Gender)
 ```
 
+### Separated estimation and testing workflow
+
+The CAFT analysis can also be carried out in separated steps. This is useful when the same unrestricted taxon-level estimates are reused for different hypotheses or for different choices of the null reference value $b$.
+
+First, we estimate the unrestricted CAFT model for each taxon using `caft_estimate()`. This step computes the unrestricted taxon-level regression coefficient estimates, but does not perform the restricted score test or multiple-testing adjustment.
+
+```{r}
+est.CAFT = caft_estimate(otu.table=count.tab, x.test=x.test, x.adj=x.adj, filter.thresh=0.05, regularize=TRUE, n.cores=1L) 
+print(est.CAFT) 
+head(est.CAFT$beta.est) 
+est.CAFT$default.Gamma
+```
+
+When `x.test` and `x.adj` are used, `caft_estimate()` internally combines them into a full design matrix and stores a default hypothesis matrix `default.Gamma`. In this example, `default.Gamma` selects the two disease-status indicators in `x.test`, corresponding to CRC and adenoma, while adjusting for age and gender.
+
+Next, we perform the restricted CAFT score test using `caft_test()`. By default, if `b=NULL`, CAFT estimates the null reference value from the median of the unrestricted taxon-level contrasts across taxa.
+
+```{r}
+test.CAFT = caft_test(est.CAFT, fdr.nominal=0.20, adjust.method="BH") 
+print(test.CAFT) 
+test.CAFT$betahat.median 
+test.CAFT$b.null 
+test.CAFT$q.detected.otu
+```
+
+The object `test.CAFT$betahat.median` gives the median-based compositional reference value, and `test.CAFT$b.null` gives the null value actually used in the restricted score test. When `b=NULL`, these two quantities are the same.
+
+Users may also specify the null reference value directly. For example, the following analysis tests the same two disease-status contrasts using the user-specified null value $b=(0,0)^'$.
+
+```{r}
+test.CAFT.b0 = caft_test(est.CAFT, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
+print(test.CAFT.b0) 
+test.CAFT.b0$b.null 
+test.CAFT.b0$b.user.specified 
+test.CAFT.b0$q.detected.otu
+```
+
+This allows sensitivity analysis with respect to the choice of the null reference value `b`. In particular, the unrestricted estimates from `caft_estimate()` are not recomputed when testing a different value of `b`.
+
+The same workflow can be run through the wrapper function `caft()`:
 
 ```{r}
 res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+res.CAFT$q.detected.otu
 ```
+
+Thus, `caft()` provides the standard user-facing workflow, while `caft_estimate()` and `caft_test()` expose the estimation and testing steps separately.
+
+### Parallel computation
 
 We can also implement multi-threads parallel computing to speed up the computation by setting the values of `n.cores` based on available computation resources.
 
 ```{r, eval=FALSE}
-res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=4)
+res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
 ```
 
 If `x.test` and `x.adj` are set to NULL, we specified all the covariates together in `x`, we can also set-up appropriate contrast matrix for 'Gamma' to test specified linear hypothesis.
@@ -215,6 +279,41 @@ Gamma
 res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
 ```
 
+### Bootstrap calibration CAFT
+
+CAFT also provides bootstrap calibration of taxon-level p-values. Bootstrap calibration can be requested by setting `boot.B` >= 2. In practice, a larger number of bootstrap replicates, such as `boot.B = 1000`, is recommended. 
+
+```{r, eval=FALSE}
+res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, boot.B=1000, boot.seed=1)
+res.CAFT.boot$q.boot.detected.otu 
+res.CAFT.boot$q.boot.chi.detected.otu
+```
+
+Bootstrap calibration can also be parallelized over bootstrap replicates. The following code is not evaluated in this vignette because the optimal number of cores depends on the user's computing environment.
+
+```{r, eval=FALSE}
+res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj,
+  boot.B=1000, boot.parallel=TRUE, boot.n.cores=2, boot.seed=1)
+```
+
+# How to cite CAFT
+
+If you use the **CAFT** package or the CAFT method in your work, please cite:
+
+Satten, G. A., Li, M., & Zhao, N. (2025). *CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells*. bioRxiv, 2025.11.26.690468. https://doi.org/10.1101/2025.11.26.690468
+
+A BibTeX entry is:
+
+```bibtex
+@article{satten2025caft,
+  title   = {CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells},
+  author  = {Satten, Glen A. and Li, Mo and Zhao, Ni},
+  journal = {bioRxiv},
+  year    = {2025},
+  doi     = {10.1101/2025.11.26.690468},
+  note    = {Preprint}
+}
+```
 
 # References
 
@@ -224,7 +323,7 @@ res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
 
 [3] Pasolli, E., Schiffer, L., Manghi, P., *et al*. Accessible, curated metagenomic data through ExperimentHub. *Nature Methods*, 14(11), 1023–1024 (2017). https://doi.org/10.1038/nmeth.4468
 
-
+[4] Satten, G. A., Li, M., & Zhao, N. CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells. *bioRxiv*, 2025.11.26.690468 (2025). https://doi.org/10.1101/2025.11.26.690468
 
 ```{r}
 sessionInfo()

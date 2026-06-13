@@ -90,10 +90,11 @@ res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=4)
 
 If you use CAFT in your work, please cite:
 
-Satten, G. A., Li, M., & Zhao, N. (2025). CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells. bioRxiv, 2025.11.26.690468. https://doi.org/10.1101/2025.11.26.690468
+Satten, G. A., Li, M., & Zhao, N. (2025). CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells. *bioRxiv*, 2025.11.26.690468. https://doi.org/10.1101/2025.11.26.690468
 
 BibTeX:
 
+```bibtex
 @article{satten2025caft,
   title   = {CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells},
   author  = {Satten, Glen A. and Li, Mo and Zhao, Ni},
@@ -102,6 +103,7 @@ BibTeX:
   doi     = {10.1101/2025.11.26.690468},
   note    = {Preprint}
 }
+```
 
 ## References
 

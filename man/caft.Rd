@@ -159,7 +159,7 @@ restricted score test.}
 \item{p.boot}{Bootstrap-calibrated empirical beta-tilde p-values. If
 \code{boot.B < 2}, this is not returned.}
 \item{q.boot}{Multiplicity-adjusted values from \code{p.boot}.}
-\item{p.boot.detected.otu}{Taxa detected using \code{p.boot < fdr.nominal}.
+\item{p.boot.marginal.otu}{Taxa detected using \code{p.boot < fdr.nominal}.
 Empty if bootstrap calibration is not run.}
 \item{q.boot.detected.otu}{Taxa detected using
 \code{q.boot < fdr.nominal}. Empty if bootstrap calibration is not run.}

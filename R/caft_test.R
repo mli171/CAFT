@@ -111,8 +111,8 @@
 #' \item{df.test}{Degrees of freedom used in the taxon-level score tests.}
 #' \item{beta.est.r}{Restricted coefficient estimates obtained under
 #'  \eqn{H_{0j}: \Gamma \beta_j = b}.}
-#' \item{p.detected.otu}{Taxa with raw p-values smaller than
-#'  \code{fdr.nominal}.}
+#' \item{p.marginal.otu}{Taxa with raw p-values smaller than
+#'  \code{fdr.nominal} based on \code{p.otu}.}
 #' \item{q.otu}{Multiplicity-adjusted p-values computed from \code{p.otu} using
 #'  the method specified by \code{adjust.method}.}
 #' \item{q.detected.otu}{Taxa with adjusted p-values smaller than
@@ -429,7 +429,7 @@ caft_test <- function(est,
   colnames(rank.teststat.norm) <- paste0("test", seq_len(n.test))
 
   q.otu <- stats::p.adjust(p.otu, method = adjust.method)
-  p.detected.otu <- taxa.name[!is.na(p.otu) & p.otu < fdr.nominal]
+  p.marginal.otu <- taxa.name[!is.na(p.otu) & p.otu < fdr.nominal]
   q.detected.otu <- taxa.name[!is.na(q.otu) & q.otu < fdr.nominal]
 
   fit.error.messages.test <- vapply(
@@ -462,7 +462,7 @@ caft_test <- function(est,
   out$p.otu <- p.otu
   out$df.test <- df.test
   out$beta.est.r <- beta.est.r
-  out$p.detected.otu <- p.detected.otu
+  out$p.marginal.otu <- p.marginal.otu
   out$q.otu <- q.otu
   out$q.detected.otu <- q.detected.otu
   out$skip.fail.rank.test.pen <- skip.fail.rank.test.pen
@@ -496,7 +496,7 @@ print.caft_test <- function(x, ...) {
   cat("  Tested contrasts:", x$n.test, "\n")
   cat("  FDR level:", x$fdr.nominal, "\n")
   cat("  Adjustment method:", x$adjust.method, "\n")
-  cat("  Taxa with p <", x$fdr.nominal, ":", length(x$p.detected.otu), "\n")
+  cat("  Taxa with p <", x$fdr.nominal, ":", length(x$p.marginal.otu), "\n")
   cat("  Taxa with q <", x$fdr.nominal, ":", length(x$q.detected.otu), "\n")
   cat(
     "  Taxa failed in restricted test:",

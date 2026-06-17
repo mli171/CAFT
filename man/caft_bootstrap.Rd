@@ -47,7 +47,7 @@ calibration results:
 \code{boot.B < 2}, this is a named vector of \code{NA} values.}
 \item{q.boot}{Multiplicity-adjusted values from \code{p.boot}, computed using
 the adjustment method stored in \code{res$adjust.method}.}
-\item{p.boot.detected.otu}{Taxa detected using \code{p.boot < fdr.nominal}.
+\item{p.boot.marginal.otu}{Taxa detected using \code{p.boot < fdr.nominal}.
 Empty if bootstrap calibration is not run.}
 \item{q.boot.detected.otu}{Taxa detected using
 \code{q.boot < fdr.nominal}. Empty if bootstrap calibration is not run.}
@@ -55,7 +55,7 @@ Empty if bootstrap calibration is not run.}
 multiple testing variables, these are the same as \code{p.boot}. If
 \code{boot.B < 2}, this is a named vector of \code{NA} values.}
 \item{q.boot.chi}{Multiplicity-adjusted values from \code{p.boot.chi}.}
-\item{p.boot.chi.detected.otu}{Taxa detected using
+\item{p.boot.chi.marginal.otu}{Taxa detected using
 \code{p.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}
 \item{q.boot.chi.detected.otu}{Taxa detected using
 \code{q.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}

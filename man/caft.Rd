@@ -149,9 +149,8 @@ taxon-level tests, if any.}
 \item{df.test}{Degrees of freedom per taxon in the test.}
 \item{beta.est.r}{Matrix of constrained (restricted) estimates from the
 restricted score test.}
-\item{p.detected.otu}{Detected significantly differential abundant taxa
-(denoted by the column names of the OTU table) at the nominal FDR based on
-\code{p.otu}.}
+\item{p.marginal.otu}{Taxa with raw p-values smaller than
+\code{fdr.nominal} based on \code{p.otu}.}
 \item{q.otu}{Q-values from adjusting p-values by the method specified in
 \code{adjust.method}, for individual OTU association tests.}
 \item{q.detected.otu}{Detected significantly differential abundant taxa
@@ -168,7 +167,7 @@ Empty if bootstrap calibration is not run.}
 multiple testing variables, these are the same as \code{p.boot}. If
 \code{boot.B < 2}, this is not returned.}
 \item{q.boot.chi}{Multiplicity-adjusted values from \code{p.boot.chi}.}
-\item{p.boot.chi.detected.otu}{Taxa detected using
+\item{p.boot.chi.marginal.otu}{Taxa detected using
 \code{p.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}
 \item{q.boot.chi.detected.otu}{Taxa detected using
 \code{q.boot.chi < fdr.nominal}. Empty if bootstrap calibration is not run.}

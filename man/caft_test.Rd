@@ -90,8 +90,8 @@ correspond to the rows of \code{Gamma}.}
 \item{df.test}{Degrees of freedom used in the taxon-level score tests.}
 \item{beta.est.r}{Restricted coefficient estimates obtained under
 \eqn{H_{0j}: \Gamma \beta_j = b}.}
-\item{p.detected.otu}{Taxa with raw p-values smaller than
-\code{fdr.nominal}.}
+\item{p.marginal.otu}{Taxa with raw p-values smaller than
+\code{fdr.nominal} based on \code{p.otu}.}
 \item{q.otu}{Multiplicity-adjusted p-values computed from \code{p.otu} using
 the method specified by \code{adjust.method}.}
 \item{q.detected.otu}{Taxa with adjusted p-values smaller than

@@ -207,18 +207,20 @@ The CAFT analysis can also be carried out in separated steps. This is useful whe
 First, we estimate the unrestricted CAFT model for each taxon using `caft_estimate()`. This step computes the unrestricted taxon-level regression coefficient estimates, but does not perform the restricted score test or multiple-testing adjustment.
 
 ```{r}
-est.CAFT = caft_estimate(otu.table=count.tab, x.test=x.test, x.adj=x.adj, filter.thresh=0.05, regularize=TRUE, n.cores=1L) 
-print(est.CAFT) 
-head(est.CAFT$beta.est) 
-est.CAFT$default.Gamma
+x = cbind(x.test, x.adj)
+Gamma = cbind(diag(ncol(x.test)), matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj)))
+est.CAFT = caft_estimate(otu.table = count.tab, x = x, filter.thresh = 0.05, regularize = TRUE, n.cores = 1L)
+print(est.CAFT)
+head(est.CAFT$beta.est)
+Gamma
 ```
 
-When `x.test` and `x.adj` are used, `caft_estimate()` internally combines them into a full design matrix and stores a default hypothesis matrix `default.Gamma`. In this example, `default.Gamma` selects the two disease-status indicators in `x.test`, corresponding to CRC and adenoma, while adjusting for age and gender.
+In the separated workflow, users first construct the full design matrix `x` and then specify the hypothesis matrix `Gamma` explicitly. The function `caft_estimate()` performs only unrestricted taxon-level estimation and does not store a default hypothesis matrix.
 
 Next, we perform the restricted CAFT score test using `caft_test()`. By default, if `b=NULL`, CAFT estimates the null reference value from the median of the unrestricted taxon-level contrasts across taxa.
 
 ```{r}
-test.CAFT = caft_test(est.CAFT, fdr.nominal=0.20, adjust.method="BH") 
+test.CAFT = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.20, adjust.method="BH")
 print(test.CAFT) 
 test.CAFT$betahat.median 
 test.CAFT$b.null 
@@ -230,7 +232,7 @@ The object `test.CAFT$betahat.median` gives the median-based compositional refer
 Users may also specify the null reference value directly. For example, the following analysis tests the same two disease-status contrasts using the user-specified null value $b=(0,0)^'$.
 
 ```{r}
-test.CAFT.b0 = caft_test(est.CAFT, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
+test.CAFT.b0 = caft_test(est.CAFT, Gamma=Gamma, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
 print(test.CAFT.b0) 
 test.CAFT.b0$b.null 
 test.CAFT.b0$b.user.specified 

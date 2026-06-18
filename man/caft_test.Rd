@@ -6,7 +6,7 @@
 \usage{
 caft_test(
   est,
-  Gamma = NULL,
+  Gamma,
   b = NULL,
   fdr.nominal = 0.2,
   adjust.method = "BH",
@@ -20,14 +20,10 @@ caft_test(
 \item{est}{An object of class \code{"caft_est"} returned by
 \code{caft_estimate()}.}
 
-\item{Gamma}{Optional hypothesis matrix specifying the linear combinations
+\item{Gamma}{Hypothesis matrix specifying the linear combinations
 of regression coefficients to be tested. Each row of \code{Gamma}
 corresponds to one tested contrast, and the number of columns must equal
-the number of covariates in \code{est$x}. If \code{Gamma = NULL}, the
-default hypothesis matrix stored in \code{est$default.Gamma} is used.
-This default is available when \code{caft_estimate()} was called with
-\code{x.test} and, optionally, \code{x.adj}. If \code{caft_estimate()}
-was called with \code{x}, then \code{Gamma} must be supplied explicitly.}
+the number of covariates in \code{est$x}. This argument is required.}
 
 \item{b}{Optional numeric vector specifying the right-hand side of the null
 hypothesis \eqn{H_{0j}: \Gamma \beta_j = b} for each taxon \eqn{j}. Its
@@ -72,7 +68,9 @@ estimation step.}
 \item{n.test}{Number of tested contrasts, equal to the number of rows of
 \code{Gamma}.}
 \item{betahat.median}{The median-based null reference value estimated from
-the unrestricted taxon-level contrasts \eqn{\Gamma \hat\beta_j}.}
+the unrestricted taxon-level contrasts \eqn{\Gamma \hat\beta_j} when
+\code{b = NULL}. If \code{b} is supplied by the user, this is returned as
+\code{NA} because the median-based null value is not computed.}
 \item{b.null}{The null value actually used in the restricted score test. This
 equals \code{betahat.median} when \code{b = NULL}, and equals the
 user-specified \code{b} otherwise.}
@@ -130,11 +128,11 @@ unrestricted estimates \eqn{\hat\beta_j} stored in \code{est$beta.est} are
 not recomputed. This allows users to test multiple hypotheses, or multiple
 choices of \code{b}, using the same unrestricted CAFT fit.
 
-If \code{Gamma = NULL}, the function uses \code{est$default.Gamma}. This
-default matrix selects the covariates supplied as \code{x.test} in
-\code{caft_estimate()}. If the estimation object was created using a full
-design matrix \code{x}, then no default hypothesis matrix is available and
-\code{Gamma} must be provided.
+The hypothesis matrix \code{Gamma} must be supplied to \code{caft_test()}.
+This keeps unrestricted estimation separate from hypothesis specification:
+\code{caft_estimate()} computes and stores unrestricted estimates, while
+\code{caft_test()} computes the hypothesis-specific restricted estimates
+and score tests for the supplied \code{Gamma} and \code{b}.
 
 If \code{b = NULL}, the null reference value is estimated from the
 unrestricted taxon-level contrasts \eqn{\Gamma \hat\beta_j}. For a
@@ -174,6 +172,11 @@ prev <- colSums(count.tab > 0)
 keep.top <- names(sort(prev, decreasing = TRUE))[seq_len(min(10L, length(prev)))]
 count.tab <- count.tab[, keep.top, drop = FALSE]
 
+## Remove samples with zero library size after subsetting taxa.
+keep.lib <- rowSums(count.tab) > 0
+count.tab <- count.tab[keep.lib, , drop = FALSE]
+sample.tab <- sample.tab[keep.lib, , drop = FALSE]
+
 Disease1 <- Disease2 <- rep(0, nrow(sample.tab))
 Disease1[sample.tab$disease == "CRC"] <- 1
 Disease2[sample.tab$disease == "adenoma"] <- 1
@@ -184,23 +187,29 @@ Gender <- as.numeric(factor(sample.tab$gender)) - 1
 x.test <- cbind(CRC = Disease1, adenoma = Disease2)
 x.adj <- cbind(Age = Age, Gender = Gender)
 
+x <- cbind(x.test, x.adj)
+Gamma <- cbind(
+  diag(ncol(x.test)),
+  matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj))
+)
+
 est <- caft_estimate(
   otu.table = count.tab,
-  x.test = x.test,
-  x.adj = x.adj,
+  x = x,
   regularize = TRUE,
   n.cores = 1L
 )
 
-res <- caft_test(est)
+res <- caft_test(est, Gamma = Gamma, b = c(0, 0))
 print(res)
 
-## Reuse the same unrestricted estimates with a user-specified null value.
-res.b <- caft_test(est, b = c(0, 0))
+## Reuse the same unrestricted estimates with a different user-specified
+## null value.
+res.b <- caft_test(est, Gamma = Gamma, b = c(0.1, 0.1))
 
 ## Example with a full design matrix and an explicit Gamma.
 x.all <- cbind(CRC = Disease1, adenoma = Disease2, Age = Age, Gender = Gender)
 est2 <- caft_estimate(otu.table = count.tab, x = x.all)
-Gamma <- rbind(c(1, 0, 0, 0), c(0, 1, 0, 0))
-res2 <- caft_test(est2, Gamma = Gamma)
+Gamma2 <- rbind(c(1, 0, 0, 0), c(0, 1, 0, 0))
+res2 <- caft_test(est2, Gamma = Gamma2, b = c(0, 0))
 }

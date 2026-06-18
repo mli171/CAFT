@@ -142,15 +142,21 @@ Gender <- as.numeric(factor(sample.tab$gender)) - 1
 x.test <- cbind(CRC = Disease1)
 x.adj <- cbind(Age = Age, Gender = Gender)
 
+x <- cbind(x.test, x.adj)
+
+Gamma <- cbind(
+  diag(ncol(x.test)),
+  matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj))
+)
+
 est <- caft_estimate(
   otu.table = count.tab,
-  x.test = x.test,
-  x.adj = x.adj,
+  x = x,
   regularize = TRUE,
   n.cores = 1L
 )
 
-res <- caft_test(est)
+res <- caft_test(est, Gamma = Gamma, b = 0)
 
 \donttest{
 ## Use a very small number of replicates only for illustration.

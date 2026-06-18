@@ -10,17 +10,9 @@
 #'
 #' @param otu.table The community OTU table (or taxa count table). Each row
 #'  corresponds to a sample and each column corresponds to one OTU (taxa).
-#' @param x.test Covariate(s) of interest. This can be a vector, matrix, or data
-#'  frame. Multi-level categorical variables should be coded as indicator
-#'  variables before input. Use \code{x.test} together with \code{x.adj} when
-#'  the default hypothesis matrix \code{Gamma} is desired.
-#' @param x.adj Covariates that need to be adjusted. Requirements are the
-#'  same as \code{x.test} above.  Use if default Gamma is desired.
-#' @param x Optional design matrix containing all covariates.
-#'  Default value is \code{NULL}. Only used
-#'  if matrix \code{Gamma} is provided as input. It can be a vector, matrix,
-#'  or dataframe. All K-level categorical variables should be converted to K-1
-#'  indicator variables before input.
+#' @param x Design matrix containing all covariates.
+#'  All K-level categorical variables should be converted to K-1 indicator
+#'  variables before input.
 #' @param filter.thresh a real value between 0 and 1 for OTU table sample
 #'  presence filtering. Any OTUs present in fewer than \code{filter.thresh}
 #'  proportion of samples are filtered out. We set the default to be 0.05.
@@ -47,14 +39,6 @@
 #' compute the median-based null value, restricted estimates, score test
 #' statistics, p-values, q-values, or bootstrap-calibrated p-values.
 #'
-#' With the \code{x.test}/\code{x.adj} interface, the function constructs the
-#' full covariate matrix by combining \code{x.test} and \code{x.adj}. It also
-#' stores a default hypothesis matrix \code{default.Gamma} selecting the
-#' columns corresponding to \code{x.test}. This matrix can be used by
-#' \code{caft_test()} for the default testing step. If the model is specified
-#' through \code{x}, no default hypothesis matrix is created, and users should
-#' provide \code{Gamma} explicitly when calling \code{caft_test()}.
-#'
 #' @return An object of class \code{"caft_est"} containing unrestricted
 #'   taxon-level coefficient estimates, censoring variables, the centered design
 #'   matrix, and filtering/fitting status indicators.
@@ -63,24 +47,10 @@
 #' \item{otu.table}{The OTU count table used in the unrestricted CAFT
 #'  estimation after input checking.}
 #' \item{lib.size}{The sequencing library size for each sample.}
-#' \item{x.test}{Covariate(s) of interest supplied by the user. This is
-#'  \code{NULL} if the model is specified through \code{x}.}
-#' \item{x.adj}{Adjustment covariate(s) supplied by the user. This is
-#'  \code{NULL} if no adjustment covariates are supplied or if the model is
-#'  specified through \code{x}.}
 #' \item{x.raw}{The original, uncentered covariate matrix used in the model.}
 #' \item{x}{The centered covariate matrix used in the unrestricted rank-based
 #'  AFT estimation.}
 #' \item{x.name}{Names of the covariates in the design matrix.}
-#' \item{design.type}{Character string indicating whether the design matrix was
-#'  specified through \code{x.test}/\code{x.adj} or through \code{x}.}
-#' \item{n.test}{Number of covariates of interest. This is available when
-#'  \code{x.test} is supplied.}
-#' \item{n.adj}{Number of adjustment covariates. This is available when
-#'  \code{x.test} is supplied.}
-#' \item{default.Gamma}{The default hypothesis matrix for testing the
-#'  covariates in \code{x.test}. This is available when \code{x.test} is
-#'  supplied and can be used by \code{caft_test}.}
 #' \item{filter.thresh}{The prevalence filtering threshold used in the
 #'  analysis.}
 #' \item{regularize}{Logical value indicating whether regularized rank-based
@@ -99,7 +69,7 @@
 #' \item{beta.est}{A matrix that includes the unrestricted estimated
 #'  coefficients obtained by fitting each OTU count to the CAFT log-linear
 #'  model. The number of columns matches the number of covariates from
-#'  \code{x.test} and \code{x.adj}, or from \code{x} when \code{x} is supplied.}
+#'  \code{x}.}
 #' \item{skip.otu}{Indicator for OTUs skipped during taxa presence filtering.}
 #' \item{skip.rare}{Indicator for OTUs skipped during taxa presence filtering.}
 #' \item{skip.fail.rank.fit.pen}{Indicator for OTUs whose unrestricted
@@ -132,6 +102,11 @@
 #' keep.top <- names(sort(prev, decreasing = TRUE))[seq_len(min(10L, length(prev)))]
 #' count.tab <- count.tab[, keep.top, drop = FALSE]
 #'
+#' ## Remove samples with zero library size after subsetting taxa.
+#' keep.lib <- rowSums(count.tab) > 0
+#' count.tab <- count.tab[keep.lib, , drop = FALSE]
+#' sample.tab <- sample.tab[keep.lib, , drop = FALSE]
+#'
 #' Disease1 <- Disease2 <- rep(0, nrow(sample.tab))
 #' Disease1[sample.tab$disease == "CRC"] <- 1
 #' Disease2[sample.tab$disease == "adenoma"] <- 1
@@ -141,61 +116,31 @@
 #'
 #' x.test <- cbind(CRC = Disease1, adenoma = Disease2)
 #' x.adj <- cbind(Age = Age, Gender = Gender)
+#' x <- cbind(x.test, x.adj)
 #'
 #' est <- caft_estimate(
 #'   otu.table = count.tab,
-#'   x.test = x.test,
-#'   x.adj = x.adj,
+#'   x = x,
 #'   regularize = TRUE,
 #'   n.cores = 1L
 #' )
 #'
 #' print(est)
-caft_estimate = function(otu.table,
-                         x.test = NULL,
-                         x.adj = NULL,
-                         x = NULL,
-                         filter.thresh = 0.05,
-                         regularize = TRUE,
-                         n.cores = 1L){
+caft_estimate <- function(otu.table,
+                          x,
+                          filter.thresh = 0.05,
+                          regularize = TRUE,
+                          n.cores = 1L){
 
   if (!is.matrix(otu.table)) {otu.table <- as.matrix(otu.table)}
 
   n.data  <- NROW(otu.table)
   n.taxa  <- NCOL(otu.table)
 
-  using.xtest <- is.null(x)
-
-  if (using.xtest && is.null(x.test)) {
-    stop("No data provided: either x.test, or x together with Gamma, is required.")
+  if (missing(x) || is.null(x)) {
+    stop("The full design matrix 'x' must be provided.", call. = FALSE)
   }
-  if (!using.xtest && (!is.null(x.test) || !is.null(x.adj))) {
-    stop("Only one of x or x.test/x.adj can be specified, not both.")
-  }
-  if (using.xtest) {
-    if (is.null(x.adj)) {
-      x.adj <- NULL
-      x <- x.test
-      n.test <- NCOL(x.test)
-      n.adj <- 0L
-    } else {
-      x.adj <- as.matrix(x.adj)
-      if (NROW(x.test) != NROW(x.adj)) {
-        stop("nrow(x.adj) must equal nrow(x.test).", call. = FALSE)
-      }
-      x <- cbind(x.test, x.adj)
-      n.test <- NCOL(x.test)
-      n.adj <- NCOL(x.adj)
-    }
-    default.Gamma <- cbind(diag(n.test), matrix(0, nrow = n.test, ncol = NCOL(x) - n.test))
-    design.type <- "x.test/x.adj"
-  } else {
-    x <- as.matrix(x)
-    n.test <- NA_integer_
-    n.adj <- NA_integer_
-    default.Gamma <- NULL
-    design.type <- "x"
-  }
+  x <- as.matrix(x)
 
   if (NROW(otu.table) != NROW(x)) {
     stop(" Number of samples not match between OTU table and covairates matrix!")
@@ -328,7 +273,7 @@ caft_estimate = function(otu.table,
         beta = rep(NA_real_, n.param),
         skip_rare = 0L,
         skip_fail_fit = 1L,
-        error_message = conditionMessage(z)
+        error_message = "Parallel unrestricted taxon-level fit failed."
       )
     } else {
       z
@@ -354,15 +299,9 @@ caft_estimate = function(otu.table,
     call = match.call(),
     otu.table = otu.table,
     lib.size = lib.size,
-    x.test = if (using.xtest) x.test else NULL,
-    x.adj = if (using.xtest) x.adj else NULL,
     x.raw = x.raw,
     x = x,
     x.name = x.name,
-    design.type = design.type,
-    n.test = n.test,
-    n.adj = n.adj,
-    default.Gamma = default.Gamma,
     filter.thresh = filter.thresh,
     regularize = regularize,
     n.data = n.data,
@@ -398,7 +337,6 @@ print.caft_est <- function(x, ...) {
   cat("  Samples:", x$n.data, "\n")
   cat("  Taxa:", x$n.taxa, "\n")
   cat("  Covariates:", x$n.param, "\n")
-  cat("  Design input:", x$design.type, "\n")
   cat("  Taxa used:", length(x$taxa.used), "\n")
   cat("  Taxa skipped by rarity filter:", sum(x$skip.rare == 1L), "\n")
   cat(

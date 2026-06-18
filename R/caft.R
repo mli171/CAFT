@@ -85,14 +85,11 @@
 #' below the sample-specific detection limit. The resulting taxon-specific
 #' regression coefficients are compared through compositional contrasts.
 #'
-#' With the default \code{x.test}/\code{x.adj} interface, the function tests the
-#' covariates in \code{x.test} while adjusting for the covariates in
-#' \code{x.adj}. Internally, this corresponds to a default hypothesis matrix
-#' \code{Gamma} selecting the columns of \code{x.test}. For more general
-#' hypotheses, users may provide a full design matrix \code{x}, a hypothesis
-#' matrix \code{Gamma}, and optionally a null value \code{b}, corresponding to
-#' \eqn{H_0: \Gamma \beta_j = b}. If \code{b = NULL}, the null value is estimated
-#' as the median-based reference across taxa.
+#' With the default \code{x.test}/\code{x.adj} interface, the wrapper constructs
+#' the full design matrix internally and tests the columns corresponding to
+#' \code{x.test}, while adjusting for the columns in \code{x.adj}. For more
+#' general hypotheses, users should provide a full design matrix \code{x} and
+#' a hypothesis matrix \code{Gamma}.
 #'
 #' This wrapper implements the refactored CAFT workflow. It first calls
 #' \code{caft_estimate()} to compute unrestricted taxon-level estimates, then
@@ -119,13 +116,13 @@
 #'
 #' @return Return a list consisting of
 #' \describe{
-#' \item{beta.est}{A matrix that include the estimated coefficients by fitting
-#'  each OTU count to the log-linear model. The number of columns should match
-#'  the number of covariates from \code{x.test} and \code{x.adj}.}
-#' \item{betahat.median}{The selected median of all betas, which was used in the
-#'  restricted score test of the significance of differential abundant OTU. It
-#'  can also be used to calculate the effect size of each OTU, defined as the
-#'  difference from the median of all betas.}
+#' \item{beta.est}{A matrix containing the unrestricted coefficient estimates
+#'  from the taxon-level log-linear CAFT model. The number of columns matches
+#'  the number of covariates in the internally constructed or user-supplied
+#'  design matrix.}
+#' \item{betahat.median}{The median-based null reference value used when
+#'  \code{b = NULL}. If \code{b} is supplied by the user, this is returned as
+#'  \code{NA} because the median-based null value is not computed.}
 #' \item{b.null}{The null value actually used in the restricted score test. This
 #'  equals \code{betahat.median} when \code{b = NULL}, and equals the
 #'  user-specified \code{b} otherwise.}
@@ -231,24 +228,39 @@
 #' x.test <- cbind(CRC = Disease1, adenoma = Disease2)
 #' x.adj <- cbind(Age = Age, Gender = Gender)
 #'
-#' ## Standard CAFT wrapper.
-#' res <- caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+#' ## Standard CAFT wrapper with a user-specified null value.
+#' res <- caft(
+#'   otu.table = count.tab,
+#'   x.test = x.test,
+#'   x.adj = x.adj,
+#'   b = c(0, 0),
+#'   boot.B = 0L
+#' )
+#'
 #' head(res$p.otu)
 #' res$q.detected.otu
 #'
 #' ## Separated estimation and testing workflow.
-#' est <- caft_estimate(
-#'   otu.table = count.tab,
-#'   x.test = x.test,
-#'   x.adj = x.adj
+#' x <- cbind(x.test, x.adj)
+#'
+#' Gamma <- cbind(
+#'   diag(ncol(x.test)),
+#'   matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj))
 #' )
 #'
-#' test <- caft_test(est)
-#' head(test$p.otu)
+#' est <- caft_estimate(
+#'   otu.table = count.tab,
+#'   x = x
+#' )
 #'
-#' ## Reuse the same unrestricted estimates with a user-specified null value.
-#' test.b0 <- caft_test(est, b = c(0, 0))
-#' test.b0$b.null
+#' res.test <- caft_test(est, Gamma = Gamma, b = c(0, 0))
+#' head(res.test$p.otu)
+#' res.test$b.null
+#'
+#' ## Reuse the same unrestricted estimates with a different user-specified
+#' ## null value.
+#' res.b <- caft_test(est, Gamma = Gamma, b = c(0.1, 0.1))
+#' res.b$b.null
 #'
 #' \donttest{
 #' ## Bootstrap calibration with a small number of replicates for illustration.
@@ -286,11 +298,50 @@ caft <- function(otu.table,
 
   boot.B <- as.integer(boot.B)
 
+  ## Build full design matrix and hypothesis matrix
+  if (!is.null(x.test)) {
+    if (!is.null(x)) {
+      stop("Use either 'x.test'/'x.adj' or full design matrix 'x', not both.")
+    }
+    if (!is.null(Gamma)) {
+      stop("When using 'x.test'/'x.adj', do not supply 'Gamma'. ",
+           "Use the full design matrix 'x' with 'Gamma' for custom hypotheses.")
+    }
+    x.test <- as.matrix(x.test)
+    if (NROW(x.test) != NROW(otu.table)) {
+      stop("nrow(x.test) must equal the number of samples in otu.table.")
+    }
+    if (is.null(x.adj)) {
+      x.full <- x.test
+      n.test <- NCOL(x.test)
+      n.adj <- 0L
+    } else {
+      x.adj <- as.matrix(x.adj)
+      if (NROW(x.adj) != NROW(otu.table)) {
+        stop("nrow(x.adj) must equal the number of samples in otu.table.")
+      }
+      x.full <- cbind(x.test, x.adj)
+      n.test <- NCOL(x.test)
+      n.adj <- NCOL(x.adj)
+    }
+    Gamma.full <- cbind(
+      diag(n.test),
+      matrix(0, nrow = n.test, ncol = n.adj)
+    )
+  } else {
+    if (is.null(x)) {
+      stop("Either 'x.test' or the full design matrix 'x' must be provided.")
+    }
+    if (is.null(Gamma)) {
+      stop("'Gamma' must be provided when using the full design matrix 'x'.")
+    }
+    x.full <- as.matrix(x)
+    Gamma.full <- as.matrix(Gamma)
+  }
+
   est <- caft_estimate(
     otu.table = otu.table,
-    x.test = x.test,
-    x.adj = x.adj,
-    x = x,
+    x = x.full,
     filter.thresh = filter.thresh,
     regularize = regularize,
     n.cores = n.cores
@@ -298,7 +349,7 @@ caft <- function(otu.table,
 
   res <- caft_test(
     est = est,
-    Gamma = Gamma,
+    Gamma = Gamma.full,
     b = b,
     fdr.nominal = fdr.nominal,
     adjust.method = adjust.method,

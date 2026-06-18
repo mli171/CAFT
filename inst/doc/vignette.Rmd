@@ -1,0 +1,332 @@
+---
+title: "A brief guide to CAFT"
+author: "Glen A Satten, Mo Li, Ni Zhao"
+date: "`r format(Sys.time(), '%d %b %Y')`"
+output: 
+  rmarkdown::html_vignette:
+    number_sections: false
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{A brief guide to CAFT}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r, include=FALSE}
+library(CAFT)
+```
+
+# Overview
+
+## Introduction
+
+Microbiome sequencing produces compositional data with prevalent zeros driven by limited sequencing depth and detection limits. Many differential-abundance methods are sensitive to these features and to heavy-tailed noise, which can inflate false positives or reduce hypothesis testing power.
+
+The **CAFT** package develops a rank-based compositional analysis using an Accelerated Failure Time (AFT) modeling framework tailored for microbiome data. Zero read counts are treated as censored observations below a detection limit—mirroring censoring in survival analysis—so zeros are modeled rather than imputed pseudo-counts. By using rank statistics within the AFT model, CAFT is robust to strict model error distributional assumptions. This method supports taxon-level differential abundance testing for binary or multi-category phenotypes, with optional adjustment for continuous and categorical covariates.
+
+## Installation
+
+Install from the local file (the .tar.gz file), which you can download from https://github.com/mli171/CAFT.
+
+```{r, eval=FALSE}
+pak::pak("CAFT_0.1.0.tar.gz") # local directory
+```
+
+You can also install the developer version from github via the following code.
+
+```{r, eval=FALSE}
+remotes::install_github("mli171/CAFT", dependencies = TRUE)
+```
+
+## Open the Vignette in R
+
+```{r, eval=FALSE}
+browseVignettes("CAFT")
+```
+
+or
+
+```{r, eval=FALSE}
+vignette("vignette", package = "CAFT")
+```
+
+# CAFT: Compositional Accelerated Failure Time Model for Microbiome Data Differential Abundance
+
+The main function in CAFT package is 
+
+```{r, eval=FALSE}
+caft(
+  otu.table,
+  x.test = NULL,
+  x.adj = NULL,
+  x = NULL,
+  Gamma = NULL,
+  b = NULL,
+  filter.thresh = 0.05,
+  fdr.nominal = 0.20,
+  adjust.method = "BH",
+  regularize = TRUE,
+  test.method = "rank",
+  n.cores = 1L,
+  boot.B = 0L,
+  boot.parallel = FALSE,
+  boot.n.cores = 1L,
+  boot.seed = NULL,
+  boot.return.dist = FALSE,
+  verbose = FALSE,
+  return.mr.resid = FALSE
+)
+```
+
+# Example data sets illustration
+
+To illustrate the package usage, we used two filtered data sets, `URT` originally from [1] and obtained from R package **LOCOM** [2] and `Colon` from R package **curatedMetagenomicData** [3] (The **curatedMetagenomicData** package installation is required through **Bioconductor**. ). The processed microbiome data sets can be loaded directly from **CAFT** package.
+
+## Binary outcome phenotypes example
+
+The example URT microbiome data set, originates from a subset of the study (only left oropharyngeal observations) by [1]. We followed the same filtering steps as in LOCOM [2], excluded three samples from individuals who had used antibiotics within three months prior to sample collection, and subset both the OTU count and taxonomy tables accordingly. The filtered OTU table have 57 rows (samples) and 856 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 89.35%.
+
+```{r}
+data("URT")
+
+throat.otu.table    <- URT$otu
+throat.meta         <- URT$meta
+throat.otu.taxonomy <- URT$tax
+
+filter.out.sam = which(throat.meta$AntibioticUsePast3Months_TimeFromAntibioticUsage != "None")
+throat.otu.table.filter = throat.otu.table[-filter.out.sam,]
+throat.meta.filter = throat.meta[-filter.out.sam,]
+
+dim(throat.otu.table.filter)
+
+cens.prop = colMeans(throat.otu.table.filter == 0, na.rm = T)
+mean(cens.prop)
+```
+
+Setting `filter.thresh = 0.10` and `fdr.nominal = 0.10`, we conduct the taxa differential abundant analysis via: 
+
+```{r}
+x.test = ifelse(throat.meta.filter$SmokingStatus == "NonSmoker", 0, 1)
+x.adj  = ifelse(throat.meta.filter$Sex == "Male", 0, 1)
+res.CAFT = caft(otu.table=throat.otu.table.filter, x.test=x.test, x.adj=x.adj, 
+                filter.thresh = 0.10, fdr.nominal = 0.10)
+```
+
+With the default multiple comparison adjustment method of "BH", we can extract the significantly differential abundant taxa (only show first five below due to space limitation).
+
+```{r}
+res.CAFT$q.detected.otu
+```
+
+Setting the grouping label of each sample, we can obtain a ggplot2-based boxplot showing the relative abundance of a specified OTU using the function `otuboxplot()` in our **CAFT** package.
+
+```{r, fig.width=7, fig.height=5, out.width="80%", fig.align='center'}
+groups = interaction(x.test, x.adj, sep = "_", drop = TRUE)
+groups = factor(groups,
+                labels = c("Non-Smoker\nMale", "Smoker\nMale",
+                           "Non-Smoker\nFemale", "Smoker\nFemale"))
+
+boxplot.otu = "2831"
+throat.otu.taxonomy[which(colnames(throat.otu.table.filter) == boxplot.otu),]
+otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter, 
+           plot.title = "<i>Prevotellaceae Prevotella</i>",groups=groups)
+```
+
+
+## Multicategory outcome phenotypes example
+
+This `Colon` data were modified through package **curatedMetagenomicData** [3] on Bioconductor by subsetting samples. Specifically, we retained only adult participants, stool specimens, and samples with disease status labeled as colorectal cancer (CRC), adenoma, or healthy.
+
+- `age_category == "adult"`
+- `body_site == "stool"`
+- `disease %in% c("CRC", "healthy", "adenoma")`
+
+The filtered OTU table have 856 rows (samples) and 935 columns (taxa).
+
+```{r}
+library(phyloseq)
+
+data(Colon)
+
+count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
+sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
+tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
+
+dim(count.tab)
+```
+
+We also removed samples with missing age values (no missing gender) and then filtered the dataset to retain only taxa present in more than one sample (i.e., taxa with positive counts in at least two samples), subsetting both the count and taxonomy tables accordingly. After this additional filtering, the OTU table has 849 rows (samples) and 708 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 87.20%.
+
+
+```{r}
+pNA = which(is.na(sample.tab$age))
+if(length(pNA) > 0){
+  count.tab = count.tab[-pNA, ]
+  sample.tab = sample.tab[-pNA,]
+}
+# No missing values from gender
+
+## otu presence filtering
+p_otu = which(rowSums(t(count.tab) > 0) > 1)
+count.tab = count.tab[,p_otu]
+tax.tab = tax.tab[p_otu,]
+
+dim(count.tab)
+
+cens.prop = colMeans(count.tab == 0, na.rm = T)
+mean(cens.prop)
+```
+
+Then we extract the testing outcomes into `x.test`, setting "healthy" as the reference level and including two indicators for "CRC" and "adenoma". We also extract the adjusting variables "Age" and "Gender" into `x.adj`.
+
+```{r}
+Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
+Disease1[sample.tab$disease == "CRC"] = 1
+Disease2[sample.tab$disease == "adenoma"] = 1
+
+Age = as.numeric(sample.tab$age)
+Gender = as.numeric(factor(sample.tab$gender)) - 1
+
+x.test = cbind(CRC = Disease1, adenoma = Disease2)
+x.adj  = cbind(Age = Age, Gender = Gender)
+```
+
+### Separated estimation and testing workflow
+
+The CAFT analysis can also be carried out in separated steps. This is useful when the same unrestricted taxon-level estimates are reused for different hypotheses or for different choices of the null reference value $b$.
+
+First, we estimate the unrestricted CAFT model for each taxon using `caft_estimate()`. This step computes the unrestricted taxon-level regression coefficient estimates, but does not perform the restricted score test or multiple-testing adjustment.
+
+```{r}
+x = cbind(x.test, x.adj)
+Gamma = cbind(diag(ncol(x.test)), matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj)))
+est.CAFT = caft_estimate(otu.table = count.tab, x = x, filter.thresh = 0.05, regularize = TRUE, n.cores = 1L)
+print(est.CAFT)
+head(est.CAFT$beta.est)
+Gamma
+```
+
+In the separated workflow, users first construct the full design matrix `x` and then specify the hypothesis matrix `Gamma` explicitly. The function `caft_estimate()` performs only unrestricted taxon-level estimation and does not store a default hypothesis matrix.
+
+Next, we perform the restricted CAFT score test using `caft_test()`. By default, if `b=NULL`, CAFT estimates the null reference value from the median of the unrestricted taxon-level contrasts across taxa.
+
+```{r}
+test.CAFT = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.20, adjust.method="BH")
+print(test.CAFT) 
+test.CAFT$betahat.median 
+test.CAFT$b.null 
+test.CAFT$q.detected.otu
+```
+
+The object `test.CAFT$betahat.median` gives the median-based compositional reference value, and `test.CAFT$b.null` gives the null value actually used in the restricted score test. When `b=NULL`, these two quantities are the same.
+
+Users may also specify the null reference value directly. For example, the following analysis tests the same two disease-status contrasts using the user-specified null value $b=(0,0)^'$.
+
+```{r}
+test.CAFT.b0 = caft_test(est.CAFT, Gamma=Gamma, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
+print(test.CAFT.b0) 
+test.CAFT.b0$b.null 
+test.CAFT.b0$b.user.specified 
+test.CAFT.b0$q.detected.otu
+```
+
+This allows sensitivity analysis with respect to the choice of the null reference value `b`. In particular, the unrestricted estimates from `caft_estimate()` are not recomputed when testing a different value of `b`.
+
+The same workflow can be run through the wrapper function `caft()`:
+
+```{r}
+res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
+res.CAFT$q.detected.otu
+```
+
+Thus, `caft()` provides the standard user-facing workflow, while `caft_estimate()` and `caft_test()` expose the estimation and testing steps separately.
+
+### Parallel computation
+
+We can also implement multi-threads parallel computing to speed up the computation by setting the values of `n.cores` based on available computation resources.
+
+```{r, eval=FALSE}
+res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
+```
+
+If `x.test` and `x.adj` are set to NULL, we specified all the covariates together in `x`, we can also set-up appropriate contrast matrix for 'Gamma' to test specified linear hypothesis.
+
+If the relative abundance for taxa $j$ in sample $i$ $\widehat{\pi}_{ij}>0$, we define $\tau_{ij}=-\log( \widehat{\pi}_{ij} )$. If $\widehat{\pi}_{ij} = 0$ that is associated with zero count cell, $\tau_{ij}= \log(N_i)$ with censoring. The corresponding AFT model can be written as
+$$\tau_{ij}=\gamma_{j}  - x_{i,CRC}\beta_{j,CRC} - x_{i,adenoma}\beta_{j,adenoma} - x_{i,Age}\beta_{j,Age} - x_{i,Gender}\beta_{j,Gender}  + \alpha_{i} + \epsilon_{ij} ~,$$
+where $x_{i,\cdot}$'s are the covariates from above and $\beta_{j,\cdot}$'s are the corresponding regression parameters.  The term $\alpha_{i}$ plays the role of a normalization constant, $\gamma_{j}$ is a taxon-specific intercept, and $\epsilon_{ij}$ is residual error. Other details can be found in the manuscript.
+
+- One degree of freedom test on $H_{0}: \beta_{j,CRC}=\beta_{j,adenoma}$, which is saying that the taxon $j$ is equally differential abundant across the CRC and the adenoma groups.
+
+```{r}
+x = cbind(x.test, x.adj)
+Gamma = matrix(c(1,-1,0,0), nrow=1, ncol=4)
+Gamma
+res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
+```
+
+- A two degree freedom test on $H_{0}: \beta_{j,CRC}=\beta_{j,adenoma}=0$, which is saying that the taxon $j$ is equally differential abundant across all three outcomes.
+
+```{r}
+Gamma = matrix(c(1,1,-1,0,0,0,0,0), nrow=2, ncol=4)
+Gamma
+res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
+```
+
+### Bootstrap calibration CAFT
+
+CAFT also provides bootstrap calibration of taxon-level p-values. Bootstrap calibration can be requested by setting `boot.B` >= 2. In practice, a larger number of bootstrap replicates, such as `boot.B = 1000`, is recommended. 
+
+```{r, eval=FALSE}
+res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, boot.B=1000, boot.seed=1)
+res.CAFT.boot$q.boot.detected.otu 
+res.CAFT.boot$q.boot.chi.detected.otu
+```
+
+Bootstrap calibration can also be parallelized over bootstrap replicates. The following code is not evaluated in this vignette because the optimal number of cores depends on the user's computing environment.
+
+```{r, eval=FALSE}
+res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj,
+  boot.B=1000, boot.parallel=TRUE, boot.n.cores=2, boot.seed=1)
+```
+
+# How to cite CAFT
+
+If you use the **CAFT** package or the CAFT method in your work, please cite:
+
+Satten, G. A., Li, M., & Zhao, N. (2025). *CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells*. bioRxiv, 2025.11.26.690468. https://doi.org/10.1101/2025.11.26.690468
+
+A BibTeX entry is:
+
+```bibtex
+@article{satten2025caft,
+  title   = {CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells},
+  author  = {Satten, Glen A. and Li, Mo and Zhao, Ni},
+  journal = {bioRxiv},
+  year    = {2025},
+  doi     = {10.1101/2025.11.26.690468},
+  note    = {Preprint}
+}
+```
+
+# References
+
+[1] Charlson, E. S., Chen, J., Custers-Allen, R., *et al*. Disordered microbial communities in the upper respiratory tract of cigarette smokers. *PloS one*, 5(12), e15216. https://doi.org/10.1371/journal.pone.0015216
+
+[2] Hu, Y., Satten, G. A., \& Hu, Y. J. LOCOM: A logistic regression model for testing differential abundance in compositional microbiome data with false discovery rate control. *Proceedings of the National Academy of Sciences*, 119(30), e2122788119 (2022). https://doi.org/10.1073/pnas.2122788119
+
+[3] Pasolli, E., Schiffer, L., Manghi, P., *et al*. Accessible, curated metagenomic data through ExperimentHub. *Nature Methods*, 14(11), 1023–1024 (2017). https://doi.org/10.1038/nmeth.4468
+
+[4] Satten, G. A., Li, M., & Zhao, N. CAFT: A Compositional Log-Linear Model for Microbiome Data with Zero Cells. *bioRxiv*, 2025.11.26.690468 (2025). https://doi.org/10.1101/2025.11.26.690468
+
+```{r}
+sessionInfo()
+```

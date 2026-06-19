@@ -81,13 +81,11 @@ otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter,
            plot.title = "<i>Prevotellaceae Prevotella</i>",groups=groups)
 
 ## -----------------------------------------------------------------------------
-library(phyloseq)
-
 data(Colon)
 
-count.tab = t(as.data.frame(as.matrix(otu_table(Colon))))
-sample.tab = as.data.frame(as.matrix(sample_data(Colon)))
-tax.tab = as.data.frame(as.matrix(tax_table(Colon)))
+count.tab = Colon$otu
+sample.tab = Colon$meta
+tax.tab = Colon$tax
 
 dim(count.tab)
 

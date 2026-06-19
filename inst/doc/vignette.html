@@ -12,7 +12,7 @@
 
 <meta name="author" content="Glen A Satten, Mo Li, Ni Zhao" />
 
-<meta name="date" content="2026-06-18" />
+<meta name="date" content="2026-06-19" />
 
 <title>A brief guide to CAFT</title>
 
@@ -341,7 +341,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">A brief guide to CAFT</h1>
 <h4 class="author">Glen A Satten, Mo Li, Ni Zhao</h4>
-<h4 class="date">18 Jun 2026</h4>
+<h4 class="date">19 Jun 2026</h4>
 
 
 <div id="TOC">
@@ -513,16 +513,14 @@ cancer (CRC), adenoma, or healthy.</p>
 </ul>
 <p>The filtered OTU table have 856 rows (samples) and 935 columns
 (taxa).</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">library</span>(phyloseq)</span>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">data</span>(Colon)</span>
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">data</span>(Colon)</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>count.tab <span class="ot">=</span> <span class="fu">t</span>(<span class="fu">as.data.frame</span>(<span class="fu">as.matrix</span>(<span class="fu">otu_table</span>(Colon))))</span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>sample.tab <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">as.matrix</span>(<span class="fu">sample_data</span>(Colon)))</span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>tax.tab <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">as.matrix</span>(<span class="fu">tax_table</span>(Colon)))</span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="fu">dim</span>(count.tab)</span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt; [1] 856 935</span></span></code></pre></div>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>count.tab <span class="ot">=</span> Colon<span class="sc">$</span>otu</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>sample.tab <span class="ot">=</span> Colon<span class="sc">$</span>meta</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>tax.tab <span class="ot">=</span> Colon<span class="sc">$</span>tax</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="fu">dim</span>(count.tab)</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; [1] 856 935</span></span></code></pre></div>
 <p>We also removed samples with missing age values (no missing gender)
 and then filtered the dataset to retain only taxa present in more than
 one sample (i.e., taxa with positive counts in at least two samples),
@@ -1088,40 +1086,26 @@ Log-Linear Model for Microbiome Data with Zero Cells. <em>bioRxiv</em>,
 <span id="cb23-17"><a href="#cb23-17" tabindex="-1"></a><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span id="cb23-18"><a href="#cb23-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb23-19"><a href="#cb23-19" tabindex="-1"></a><span class="co">#&gt; other attached packages:</span></span>
-<span id="cb23-20"><a href="#cb23-20" tabindex="-1"></a><span class="co">#&gt; [1] phyloseq_1.54.2 CAFT_0.1.0     </span></span>
+<span id="cb23-20"><a href="#cb23-20" tabindex="-1"></a><span class="co">#&gt; [1] CAFT_0.1.0</span></span>
 <span id="cb23-21"><a href="#cb23-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb23-22"><a href="#cb23-22" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span id="cb23-23"><a href="#cb23-23" tabindex="-1"></a><span class="co">#&gt;  [1] ade4_1.7-24         tidyselect_1.2.1    dplyr_1.1.2        </span></span>
-<span id="cb23-24"><a href="#cb23-24" tabindex="-1"></a><span class="co">#&gt;  [4] farver_2.1.2        Biostrings_2.78.0   S7_0.2.2           </span></span>
-<span id="cb23-25"><a href="#cb23-25" tabindex="-1"></a><span class="co">#&gt;  [7] fastmap_1.2.0       digest_0.6.39       lifecycle_1.0.5    </span></span>
-<span id="cb23-26"><a href="#cb23-26" tabindex="-1"></a><span class="co">#&gt; [10] cluster_2.1.8.2     survival_3.8-6      magrittr_2.0.5     </span></span>
-<span id="cb23-27"><a href="#cb23-27" tabindex="-1"></a><span class="co">#&gt; [13] compiler_4.5.0      rlang_1.2.0         sass_0.4.10        </span></span>
-<span id="cb23-28"><a href="#cb23-28" tabindex="-1"></a><span class="co">#&gt; [16] rngtools_1.5.2      tools_4.5.0         igraph_2.3.2       </span></span>
-<span id="cb23-29"><a href="#cb23-29" tabindex="-1"></a><span class="co">#&gt; [19] yaml_2.3.12         data.table_1.18.4   knitr_1.51         </span></span>
-<span id="cb23-30"><a href="#cb23-30" tabindex="-1"></a><span class="co">#&gt; [22] labeling_0.4.3      doRNG_1.8.6.3       plyr_1.8.9         </span></span>
-<span id="cb23-31"><a href="#cb23-31" tabindex="-1"></a><span class="co">#&gt; [25] xml2_1.5.2          RColorBrewer_1.1-3  expm_1.0-0         </span></span>
-<span id="cb23-32"><a href="#cb23-32" tabindex="-1"></a><span class="co">#&gt; [28] withr_3.0.2         BiocGenerics_0.56.0 grid_4.5.0         </span></span>
-<span id="cb23-33"><a href="#cb23-33" tabindex="-1"></a><span class="co">#&gt; [31] stats4_4.5.0        multtest_2.66.0     biomformat_1.38.3  </span></span>
-<span id="cb23-34"><a href="#cb23-34" tabindex="-1"></a><span class="co">#&gt; [34] Rhdf5lib_1.30.0     ggplot2_4.0.3       scales_1.4.0       </span></span>
-<span id="cb23-35"><a href="#cb23-35" tabindex="-1"></a><span class="co">#&gt; [37] iterators_1.0.14    MASS_7.3-65         survey_4.5         </span></span>
-<span id="cb23-36"><a href="#cb23-36" tabindex="-1"></a><span class="co">#&gt; [40] mvtnorm_1.4-1       cli_3.6.6           rmarkdown_2.31     </span></span>
-<span id="cb23-37"><a href="#cb23-37" tabindex="-1"></a><span class="co">#&gt; [43] vegan_2.7-5         crayon_1.5.3        generics_0.1.4     </span></span>
-<span id="cb23-38"><a href="#cb23-38" tabindex="-1"></a><span class="co">#&gt; [46] otel_0.2.0          rstudioapi_0.18.0   reshape2_1.4.5     </span></span>
-<span id="cb23-39"><a href="#cb23-39" tabindex="-1"></a><span class="co">#&gt; [49] commonmark_2.0.0    DBI_1.3.0           ape_5.8-1          </span></span>
-<span id="cb23-40"><a href="#cb23-40" tabindex="-1"></a><span class="co">#&gt; [52] cachem_1.1.0        rhdf5_2.54.1        stringr_1.6.0      </span></span>
-<span id="cb23-41"><a href="#cb23-41" tabindex="-1"></a><span class="co">#&gt; [55] splines_4.5.0       parallel_4.5.0      XVector_0.50.0     </span></span>
-<span id="cb23-42"><a href="#cb23-42" tabindex="-1"></a><span class="co">#&gt; [58] mitools_2.4         vctrs_0.7.3         Matrix_1.7-5       </span></span>
-<span id="cb23-43"><a href="#cb23-43" tabindex="-1"></a><span class="co">#&gt; [61] jsonlite_2.0.0      litedown_0.9        IRanges_2.44.0     </span></span>
-<span id="cb23-44"><a href="#cb23-44" tabindex="-1"></a><span class="co">#&gt; [64] S4Vectors_0.48.1    foreach_1.5.2       jquerylib_0.1.4    </span></span>
-<span id="cb23-45"><a href="#cb23-45" tabindex="-1"></a><span class="co">#&gt; [67] ICS_1.4-2           glue_1.8.1          codetools_0.2-20   </span></span>
-<span id="cb23-46"><a href="#cb23-46" tabindex="-1"></a><span class="co">#&gt; [70] ggtext_0.1.2        ICSNP_1.1-3         stringi_1.8.7      </span></span>
-<span id="cb23-47"><a href="#cb23-47" tabindex="-1"></a><span class="co">#&gt; [73] gtable_0.3.6        tibble_3.3.1        pillar_1.11.1      </span></span>
-<span id="cb23-48"><a href="#cb23-48" tabindex="-1"></a><span class="co">#&gt; [76] htmltools_0.5.9     Seqinfo_1.0.0       rhdf5filters_1.20.0</span></span>
-<span id="cb23-49"><a href="#cb23-49" tabindex="-1"></a><span class="co">#&gt; [79] R6_2.6.1            doParallel_1.0.17   evaluate_1.0.5     </span></span>
-<span id="cb23-50"><a href="#cb23-50" tabindex="-1"></a><span class="co">#&gt; [82] lattice_0.22-9      Biobase_2.70.0      markdown_2.0       </span></span>
-<span id="cb23-51"><a href="#cb23-51" tabindex="-1"></a><span class="co">#&gt; [85] gridtext_0.1.6      bslib_0.11.0        Rcpp_1.1.1-1.1     </span></span>
-<span id="cb23-52"><a href="#cb23-52" tabindex="-1"></a><span class="co">#&gt; [88] nlme_3.1-169        permute_0.9-10      mgcv_1.9-4         </span></span>
-<span id="cb23-53"><a href="#cb23-53" tabindex="-1"></a><span class="co">#&gt; [91] xfun_0.58           pkgconfig_2.0.3</span></span></code></pre></div>
+<span id="cb23-23"><a href="#cb23-23" tabindex="-1"></a><span class="co">#&gt;  [1] sass_0.4.10        generics_0.1.4     xml2_1.5.2         stringi_1.8.7     </span></span>
+<span id="cb23-24"><a href="#cb23-24" tabindex="-1"></a><span class="co">#&gt;  [5] lattice_0.22-9     digest_0.6.39      magrittr_2.0.5     evaluate_1.0.5    </span></span>
+<span id="cb23-25"><a href="#cb23-25" tabindex="-1"></a><span class="co">#&gt;  [9] grid_4.5.0         RColorBrewer_1.1-3 iterators_1.0.14   mvtnorm_1.4-1     </span></span>
+<span id="cb23-26"><a href="#cb23-26" tabindex="-1"></a><span class="co">#&gt; [13] fastmap_1.2.0      foreach_1.5.2      doParallel_1.0.17  jsonlite_2.0.0    </span></span>
+<span id="cb23-27"><a href="#cb23-27" tabindex="-1"></a><span class="co">#&gt; [17] Matrix_1.7-5       DBI_1.3.0          survival_3.8-6     ggtext_0.1.2      </span></span>
+<span id="cb23-28"><a href="#cb23-28" tabindex="-1"></a><span class="co">#&gt; [21] doRNG_1.8.6.3      scales_1.4.0       codetools_0.2-20   jquerylib_0.1.4   </span></span>
+<span id="cb23-29"><a href="#cb23-29" tabindex="-1"></a><span class="co">#&gt; [25] cli_3.6.6          mitools_2.4        rlang_1.2.0        expm_1.0-0        </span></span>
+<span id="cb23-30"><a href="#cb23-30" tabindex="-1"></a><span class="co">#&gt; [29] litedown_0.9       splines_4.5.0      commonmark_2.0.0   withr_3.0.2       </span></span>
+<span id="cb23-31"><a href="#cb23-31" tabindex="-1"></a><span class="co">#&gt; [33] cachem_1.1.0       yaml_2.3.12        otel_0.2.0         tools_4.5.0       </span></span>
+<span id="cb23-32"><a href="#cb23-32" tabindex="-1"></a><span class="co">#&gt; [37] parallel_4.5.0     dplyr_1.1.2        ggplot2_4.0.3      rngtools_1.5.2    </span></span>
+<span id="cb23-33"><a href="#cb23-33" tabindex="-1"></a><span class="co">#&gt; [41] vctrs_0.7.3        R6_2.6.1           lifecycle_1.0.5    stringr_1.6.0     </span></span>
+<span id="cb23-34"><a href="#cb23-34" tabindex="-1"></a><span class="co">#&gt; [45] MASS_7.3-65        pkgconfig_2.0.3    bslib_0.11.0       pillar_1.11.1     </span></span>
+<span id="cb23-35"><a href="#cb23-35" tabindex="-1"></a><span class="co">#&gt; [49] gtable_0.3.6       glue_1.8.1         Rcpp_1.1.1-1.1     xfun_0.58         </span></span>
+<span id="cb23-36"><a href="#cb23-36" tabindex="-1"></a><span class="co">#&gt; [53] tibble_3.3.1       tidyselect_1.2.1   rstudioapi_0.18.0  knitr_1.51        </span></span>
+<span id="cb23-37"><a href="#cb23-37" tabindex="-1"></a><span class="co">#&gt; [57] farver_2.1.2       survey_4.5         htmltools_0.5.9    rmarkdown_2.31    </span></span>
+<span id="cb23-38"><a href="#cb23-38" tabindex="-1"></a><span class="co">#&gt; [61] labeling_0.4.3     compiler_4.5.0     ICSNP_1.1-3        S7_0.2.2          </span></span>
+<span id="cb23-39"><a href="#cb23-39" tabindex="-1"></a><span class="co">#&gt; [65] ICS_1.4-2          markdown_2.0       gridtext_0.1.6</span></span></code></pre></div>
 </div>
 
 

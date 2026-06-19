@@ -23,12 +23,9 @@ Depends: R (>= 4.3.0)
 URL: https://github.com/mli171/CAFT
 BugReports: https://github.com/mli171/CAFT/issues
 Suggests: 
-    phyloseq,
     graphics,
     knitr,
     rmarkdown,
-    mia,
-    GenomeInfoDb,
     testthat (>= 3.0.0)
 Encoding: UTF-8
 LazyData: true

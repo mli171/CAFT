@@ -157,8 +157,8 @@ calibration is not performed by this function; it is handled separately by
 \examples{
 data(Colon)
 
-count.tab <- t(as(phyloseq::otu_table(Colon), "matrix"))
-sample.tab <- as(phyloseq::sample_data(Colon), "data.frame")
+count.tab <- Colon$otu
+sample.tab <- Colon$meta
 
 keep.sample <- !is.na(sample.tab$age)
 count.tab <- count.tab[keep.sample, , drop = FALSE]

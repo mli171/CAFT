@@ -10,10 +10,15 @@
 #'
 #' @param est An object of class \code{"caft_est"} returned by
 #'   \code{caft_estimate()}.
-#' @param Gamma Hypothesis matrix specifying the linear combinations
-#'   of regression coefficients to be tested. Each row of \code{Gamma}
-#'   corresponds to one tested contrast, and the number of columns must equal
-#'   the number of covariates in \code{est$x}. This argument is required.
+#' @param Gamma Optional hypothesis matrix specifying the linear combinations
+#'   of regression coefficients to be tested. If \code{Gamma = NULL},
+#'   \code{x.test} must be supplied and \code{caft_test()} constructs the
+#'   corresponding hypothesis matrix internally.
+#' @param x.test Optional covariate matrix corresponding to the tested
+#'   covariates used in the unrestricted fit. Used only when \code{Gamma = NULL}
+#'   to construct the hypothesis matrix.
+#' @param x.adj Optional covariate matrix corresponding to adjustment covariates
+#'   used in the unrestricted fit. Used only when \code{Gamma = NULL}.
 #' @param b Optional numeric vector specifying the right-hand side of the null
 #'   hypothesis \eqn{H_{0j}: \Gamma \beta_j = b} for each taxon \eqn{j}. Its
 #'   length must equal the number of rows of \code{Gamma}. If \code{b = NULL},
@@ -49,7 +54,10 @@
 #' not recomputed. This allows users to test multiple hypotheses, or multiple
 #' choices of \code{b}, using the same unrestricted CAFT fit.
 #'
-#' The hypothesis matrix \code{Gamma} must be supplied to \code{caft_test()}.
+#' The hypothesis can be specified either by supplying \code{Gamma} directly or
+#' by supplying \code{x.test} and optionally \code{x.adj}, in which case
+#' \code{caft_test()} constructs the corresponding hypothesis matrix internally.
+#'
 #' This keeps unrestricted estimation separate from hypothesis specification:
 #' \code{caft_estimate()} computes and stores unrestricted estimates, while
 #' \code{caft_test()} computes the hypothesis-specific restricted estimates
@@ -82,6 +90,8 @@
 #' \item{beta.est}{Unrestricted taxon-level coefficient estimates inherited
 #'  from \code{caft_estimate()}.}
 #' \item{Gamma}{The hypothesis matrix used in the restricted score test.}
+#' \item{Gamma.source}{Character string indicating whether \code{Gamma} was
+#'  user-supplied or constructed internally from \code{x.test}/\code{x.adj}.}
 #' \item{Lambda}{The nuisance-parameter contrast matrix used in the restricted
 #'  estimation step.}
 #' \item{Gamma.ginv}{Generalized inverse of \code{Gamma}.}
@@ -144,9 +154,6 @@
 #' count.tab <- count.tab[keep.sample, , drop = FALSE]
 #' sample.tab <- sample.tab[keep.sample, , drop = FALSE]
 #'
-#' keep.otu <- colSums(count.tab > 0) > 1
-#' count.tab <- count.tab[, keep.otu, drop = FALSE]
-#'
 #' ## Use a small subset of taxa for a fast example.
 #' prev <- colSums(count.tab > 0)
 #' keep.top <- names(sort(prev, decreasing = TRUE))[seq_len(min(10L, length(prev)))]
@@ -183,6 +190,10 @@
 #' res <- caft_test(est, Gamma = Gamma, b = c(0, 0))
 #' print(res)
 #'
+#' ## Equivalent interface: construct Gamma internally from x.test/x.adj.
+#' res.default <- caft_test(est, x.test = x.test, x.adj = x.adj, b = c(0, 0))
+#' res.default$Gamma
+#'
 #' ## Reuse the same unrestricted estimates with a different user-specified
 #' ## null value.
 #' res.b <- caft_test(est, Gamma = Gamma, b = c(0.1, 0.1))
@@ -193,7 +204,9 @@
 #' Gamma2 <- rbind(c(1, 0, 0, 0), c(0, 1, 0, 0))
 #' res2 <- caft_test(est2, Gamma = Gamma2, b = c(0, 0))
 caft_test <- function(est,
-                      Gamma,
+                      Gamma = NULL,
+                      x.test = NULL,
+                      x.adj = NULL,
                       b = NULL,
                       fdr.nominal = 0.20,
                       adjust.method = "BH",
@@ -224,13 +237,54 @@ caft_test <- function(est,
   filter.thresh <- est$filter.thresh
 
   # set up Gamma and Lambda matrices
-  if (missing(Gamma) || is.null(Gamma)) {
-    stop("'Gamma' must be provided to caft_test().", call. = FALSE)
+  if (!is.null(Gamma) && !is.null(x.test)) {
+    stop("Use either 'Gamma' or 'x.test'/'x.adj', not both.", call. = FALSE)
   }
-  Gamma <- as.matrix(Gamma)
+
+  if (is.null(Gamma)) {
+    if (is.null(x.test)) {
+      stop("Either 'Gamma' or 'x.test' must be provided to caft_test().",
+           call. = FALSE)
+    }
+
+    x.test <- as.matrix(x.test)
+    if (NROW(x.test) != est$n.data) {
+      stop("nrow(x.test) must equal the number of samples in est.", call. = FALSE)
+    }
+
+    n.test.default <- NCOL(x.test)
+
+    if (is.null(x.adj)) {
+      n.adj.default <- 0L
+    } else {
+      x.adj <- as.matrix(x.adj)
+      if (NROW(x.adj) != est$n.data) {
+        stop("nrow(x.adj) must equal the number of samples in est.",
+             call. = FALSE)
+      }
+      n.adj.default <- NCOL(x.adj)
+    }
+
+    if (n.test.default + n.adj.default != n.param) {
+      stop("ncol(x.test) + ncol(x.adj) must equal the number of covariates in est$x.",
+           call. = FALSE)
+    }
+
+    Gamma <- cbind(
+      diag(n.test.default),
+      matrix(0, nrow = n.test.default, ncol = n.adj.default)
+    )
+    Gamma.source <- "constructed from x.test/x.adj"
+  } else {
+    Gamma <- as.matrix(Gamma)
+    Gamma.source <- "user-supplied"
+  }
+
   if (NCOL(Gamma) != n.param) {
-    stop("ncol(Gamma) must equal the number of covariates in est$x.")
+    stop("ncol(Gamma) must equal the number of covariates in est$x.",
+         call. = FALSE)
   }
+
   n.test <- NROW(Gamma)
   if (n.test < 1L) {stop("Gamma must have at least one row.")}
   if (n.test < n.param) {
@@ -453,6 +507,7 @@ caft_test <- function(est,
   out <- est
 
   out$Gamma <- Gamma
+  out$Gamma.source <- Gamma.source
   out$Lambda <- Lambda
   out$Gamma.ginv <- Gamma.ginv
   out$Lambda.ginv <- Lambda.ginv

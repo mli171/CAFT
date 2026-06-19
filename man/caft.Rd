@@ -33,10 +33,11 @@ corresponds to a sample and each column corresponds to one OTU (taxa).}
 \item{x.test}{Covariate(s) of interest. This can be a vector, matrix, or data
 frame. Multi-level categorical variables should be coded as indicator
 variables before input. Use \code{x.test} together with \code{x.adj} when
-the default hypothesis matrix \code{Gamma} is desired.}
+an automatically constructed hypothesis matrix \code{Gamma} is desired.}
 
 \item{x.adj}{Covariates that need to be adjusted. Requirements are the
-same as \code{x.test} above. Use if default \code{Gamma} is desired.}
+same as \code{x.test} above. Use with \code{x.test} when an automatically
+constructed hypothesis matrix \code{Gamma} is desired.}
 
 \item{x}{Optional design matrix containing all covariates.
 Default value is \code{NULL}. Only used
@@ -54,8 +55,9 @@ of rows of \code{Gamma}. If \code{b = NULL}, CAFT uses the median-based
 null value estimated across taxa.}
 
 \item{filter.thresh}{A real value between 0 and 1 for OTU table sample
-presence filtering. Any OTUs present in fewer than \code{filter.thresh}
-proportion of samples are filtered out. We set the default to be 0.05.}
+presence filtering. Taxa with presence proportion less than or equal to
+\code{filter.thresh} are skipped in the taxon-level fitting and testing
+steps. The default is \code{0.05}.}
 
 \item{fdr.nominal}{The nominal false discovery rate (FDR). The default is
 \code{0.20}.}
@@ -129,6 +131,9 @@ median-based reference value. If \code{TRUE}, \code{b.null} equals the
 user-specified null value.}
 \item{b.user}{The user-specified null value, returned only when \code{b} is
 supplied. Otherwise \code{NULL}.}
+\item{Gamma}{The hypothesis matrix used in the restricted score test.}
+\item{Gamma.source}{Character string indicating whether \code{Gamma} was
+user-supplied or constructed internally from \code{x.test}/\code{x.adj}.}
 \item{rank.teststat}{Test statistics from the proposed score test.}
 \item{rank.teststat.norm}{Numeric matrix with the normalized rank-based test
 statistics for each taxon (rows) and each tested contrast (columns, in the
@@ -247,9 +252,6 @@ keep.sample <- !is.na(sample.tab$age)
 count.tab <- count.tab[keep.sample, , drop = FALSE]
 sample.tab <- sample.tab[keep.sample, , drop = FALSE]
 
-keep.otu <- colSums(count.tab > 0) > 1
-count.tab <- count.tab[, keep.otu, drop = FALSE]
-
 ## Use a small subset of taxa for a fast example.
 prev <- colSums(count.tab > 0)
 keep.top <- names(sort(prev, decreasing = TRUE))[
@@ -283,6 +285,8 @@ res <- caft(
 
 head(res$p.otu)
 res$q.detected.otu
+res$Gamma
+res$Gamma.source
 
 ## Separated estimation and testing workflow.
 x <- cbind(x.test, x.adj)

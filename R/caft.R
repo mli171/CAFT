@@ -19,9 +19,10 @@
 #' @param x.test Covariate(s) of interest. This can be a vector, matrix, or data
 #'  frame. Multi-level categorical variables should be coded as indicator
 #'  variables before input. Use \code{x.test} together with \code{x.adj} when
-#'  the default hypothesis matrix \code{Gamma} is desired.
+#'  an automatically constructed hypothesis matrix \code{Gamma} is desired.
 #' @param x.adj Covariates that need to be adjusted. Requirements are the
-#'  same as \code{x.test} above. Use if default \code{Gamma} is desired.
+#'  same as \code{x.test} above. Use with \code{x.test} when an automatically
+#'  constructed hypothesis matrix \code{Gamma} is desired.
 #' @param x Optional design matrix containing all covariates.
 #'  Default value is \code{NULL}. Only used
 #'  if matrix \code{Gamma} is provided as input. It can be a vector, matrix,
@@ -35,8 +36,9 @@
 #'  of rows of \code{Gamma}. If \code{b = NULL}, CAFT uses the median-based
 #'  null value estimated across taxa.
 #' @param filter.thresh A real value between 0 and 1 for OTU table sample
-#'  presence filtering. Any OTUs present in fewer than \code{filter.thresh}
-#'  proportion of samples are filtered out. We set the default to be 0.05.
+#'  presence filtering. Taxa with presence proportion less than or equal to
+#'  \code{filter.thresh} are skipped in the taxon-level fitting and testing
+#'  steps. The default is \code{0.05}.
 #' @param fdr.nominal The nominal false discovery rate (FDR). The default is
 #'  \code{0.20}.
 #' @param adjust.method A character string. Use multiple comparison/testing
@@ -132,6 +134,9 @@
 #'  user-specified null value.}
 #' \item{b.user}{The user-specified null value, returned only when \code{b} is
 #'  supplied. Otherwise \code{NULL}.}
+#' \item{Gamma}{The hypothesis matrix used in the restricted score test.}
+#' \item{Gamma.source}{Character string indicating whether \code{Gamma} was
+#'  user-supplied or constructed internally from \code{x.test}/\code{x.adj}.}
 #' \item{rank.teststat}{Test statistics from the proposed score test.}
 #' \item{rank.teststat.norm}{Numeric matrix with the normalized rank-based test
 #'  statistics for each taxon (rows) and each tested contrast (columns, in the
@@ -203,9 +208,6 @@
 #' count.tab <- count.tab[keep.sample, , drop = FALSE]
 #' sample.tab <- sample.tab[keep.sample, , drop = FALSE]
 #'
-#' keep.otu <- colSums(count.tab > 0) > 1
-#' count.tab <- count.tab[, keep.otu, drop = FALSE]
-#'
 #' ## Use a small subset of taxa for a fast example.
 #' prev <- colSums(count.tab > 0)
 #' keep.top <- names(sort(prev, decreasing = TRUE))[
@@ -239,6 +241,8 @@
 #'
 #' head(res$p.otu)
 #' res$q.detected.otu
+#' res$Gamma
+#' res$Gamma.source
 #'
 #' ## Separated estimation and testing workflow.
 #' x <- cbind(x.test, x.adj)
@@ -298,14 +302,17 @@ caft <- function(otu.table,
 
   boot.B <- as.integer(boot.B)
 
+  use.test.adj <- !is.null(x.test)
+
   ## Build full design matrix and hypothesis matrix
-  if (!is.null(x.test)) {
+  if (use.test.adj) {
     if (!is.null(x)) {
       stop("Use either 'x.test'/'x.adj' or full design matrix 'x', not both.")
     }
     if (!is.null(Gamma)) {
-      stop("When using 'x.test'/'x.adj', do not supply 'Gamma'. ",
-           "Use the full design matrix 'x' with 'Gamma' for custom hypotheses.")
+      stop(
+        "When using 'x.test'/'x.adj', do not supply 'Gamma'. ",
+        "Use the full design matrix 'x' with 'Gamma' for custom hypotheses.")
     }
     x.test <- as.matrix(x.test)
     if (NROW(x.test) != NROW(otu.table)) {
@@ -313,21 +320,13 @@ caft <- function(otu.table,
     }
     if (is.null(x.adj)) {
       x.full <- x.test
-      n.test <- NCOL(x.test)
-      n.adj <- 0L
     } else {
       x.adj <- as.matrix(x.adj)
       if (NROW(x.adj) != NROW(otu.table)) {
         stop("nrow(x.adj) must equal the number of samples in otu.table.")
       }
       x.full <- cbind(x.test, x.adj)
-      n.test <- NCOL(x.test)
-      n.adj <- NCOL(x.adj)
     }
-    Gamma.full <- cbind(
-      diag(n.test),
-      matrix(0, nrow = n.test, ncol = n.adj)
-    )
   } else {
     if (is.null(x)) {
       stop("Either 'x.test' or the full design matrix 'x' must be provided.")
@@ -336,7 +335,7 @@ caft <- function(otu.table,
       stop("'Gamma' must be provided when using the full design matrix 'x'.")
     }
     x.full <- as.matrix(x)
-    Gamma.full <- as.matrix(Gamma)
+    Gamma <- as.matrix(Gamma)
   }
 
   est <- caft_estimate(
@@ -347,17 +346,33 @@ caft <- function(otu.table,
     n.cores = n.cores
   )
 
-  res <- caft_test(
-    est = est,
-    Gamma = Gamma.full,
-    b = b,
-    fdr.nominal = fdr.nominal,
-    adjust.method = adjust.method,
-    regularize = regularize,
-    test.method = test.method,
-    n.cores = n.cores,
-    return.mr.resid = return.mr.resid
-  )
+  if (use.test.adj) {
+
+    res <- caft_test(
+      est = est,
+      x.test = x.test,
+      x.adj = x.adj,
+      b = b,
+      fdr.nominal = fdr.nominal,
+      adjust.method = adjust.method,
+      regularize = regularize,
+      test.method = test.method,
+      n.cores = n.cores,
+      return.mr.resid = return.mr.resid
+    )
+  } else {
+    res <- caft_test(
+      est = est,
+      Gamma = Gamma,
+      b = b,
+      fdr.nominal = fdr.nominal,
+      adjust.method = adjust.method,
+      regularize = regularize,
+      test.method = test.method,
+      n.cores = n.cores,
+      return.mr.resid = return.mr.resid
+    )
+  }
 
   if (!is.na(boot.B) && boot.B >= 2L) {
     res <- caft_bootstrap(

@@ -120,9 +120,6 @@ keep.sample <- !is.na(sample.tab$age)
 count.tab <- count.tab[keep.sample, , drop = FALSE]
 sample.tab <- sample.tab[keep.sample, , drop = FALSE]
 
-keep.otu <- colSums(count.tab > 0) > 1
-count.tab <- count.tab[, keep.otu, drop = FALSE]
-
 ## Use a small subset of taxa for a fast example.
 prev <- colSums(count.tab > 0)
 keep.top <- names(sort(prev, decreasing = TRUE))[seq_len(min(5L, length(prev)))]

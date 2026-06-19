@@ -6,7 +6,9 @@
 \usage{
 caft_test(
   est,
-  Gamma,
+  Gamma = NULL,
+  x.test = NULL,
+  x.adj = NULL,
   b = NULL,
   fdr.nominal = 0.2,
   adjust.method = "BH",
@@ -20,10 +22,17 @@ caft_test(
 \item{est}{An object of class \code{"caft_est"} returned by
 \code{caft_estimate()}.}
 
-\item{Gamma}{Hypothesis matrix specifying the linear combinations
-of regression coefficients to be tested. Each row of \code{Gamma}
-corresponds to one tested contrast, and the number of columns must equal
-the number of covariates in \code{est$x}. This argument is required.}
+\item{Gamma}{Optional hypothesis matrix specifying the linear combinations
+of regression coefficients to be tested. If \code{Gamma = NULL},
+\code{x.test} must be supplied and \code{caft_test()} constructs the
+corresponding hypothesis matrix internally.}
+
+\item{x.test}{Optional covariate matrix corresponding to the tested
+covariates used in the unrestricted fit. Used only when \code{Gamma = NULL}
+to construct the hypothesis matrix.}
+
+\item{x.adj}{Optional covariate matrix corresponding to adjustment covariates
+used in the unrestricted fit. Used only when \code{Gamma = NULL}.}
 
 \item{b}{Optional numeric vector specifying the right-hand side of the null
 hypothesis \eqn{H_{0j}: \Gamma \beta_j = b} for each taxon \eqn{j}. Its
@@ -61,6 +70,8 @@ estimation object together with the restricted testing results.
 \item{beta.est}{Unrestricted taxon-level coefficient estimates inherited
 from \code{caft_estimate()}.}
 \item{Gamma}{The hypothesis matrix used in the restricted score test.}
+\item{Gamma.source}{Character string indicating whether \code{Gamma} was
+user-supplied or constructed internally from \code{x.test}/\code{x.adj}.}
 \item{Lambda}{The nuisance-parameter contrast matrix used in the restricted
 estimation step.}
 \item{Gamma.ginv}{Generalized inverse of \code{Gamma}.}
@@ -128,7 +139,10 @@ unrestricted estimates \eqn{\hat\beta_j} stored in \code{est$beta.est} are
 not recomputed. This allows users to test multiple hypotheses, or multiple
 choices of \code{b}, using the same unrestricted CAFT fit.
 
-The hypothesis matrix \code{Gamma} must be supplied to \code{caft_test()}.
+The hypothesis can be specified either by supplying \code{Gamma} directly or
+by supplying \code{x.test} and optionally \code{x.adj}, in which case
+\code{caft_test()} constructs the corresponding hypothesis matrix internally.
+
 This keeps unrestricted estimation separate from hypothesis specification:
 \code{caft_estimate()} computes and stores unrestricted estimates, while
 \code{caft_test()} computes the hypothesis-specific restricted estimates
@@ -163,9 +177,6 @@ sample.tab <- Colon$meta
 keep.sample <- !is.na(sample.tab$age)
 count.tab <- count.tab[keep.sample, , drop = FALSE]
 sample.tab <- sample.tab[keep.sample, , drop = FALSE]
-
-keep.otu <- colSums(count.tab > 0) > 1
-count.tab <- count.tab[, keep.otu, drop = FALSE]
 
 ## Use a small subset of taxa for a fast example.
 prev <- colSums(count.tab > 0)
@@ -202,6 +213,10 @@ est <- caft_estimate(
 
 res <- caft_test(est, Gamma = Gamma, b = c(0, 0))
 print(res)
+
+## Equivalent interface: construct Gamma internally from x.test/x.adj.
+res.default <- caft_test(est, x.test = x.test, x.adj = x.adj, b = c(0, 0))
+res.default$Gamma
 
 ## Reuse the same unrestricted estimates with a different user-specified
 ## null value.

@@ -63,11 +63,14 @@ mean(cens.prop)
 ## -----------------------------------------------------------------------------
 x.test = ifelse(throat.meta.filter$SmokingStatus == "NonSmoker", 0, 1)
 x.adj  = ifelse(throat.meta.filter$Sex == "Male", 0, 1)
-res.CAFT = caft(otu.table=throat.otu.table.filter, x.test=x.test, x.adj=x.adj, 
+res.CAFT.throat = caft(otu.table=throat.otu.table.filter, x.test=x.test, x.adj=x.adj, 
                 filter.thresh = 0.10, fdr.nominal = 0.10)
 
 ## -----------------------------------------------------------------------------
-res.CAFT$q.detected.otu
+res.CAFT.throat$q.detected.otu
+
+## -----------------------------------------------------------------------------
+res.CAFT.throat$p.otu[res.CAFT.throat$q.detected.otu][1:5]
 
 ## ----fig.width=7, fig.height=5, out.width="80%", fig.align='center'-----------
 groups = interaction(x.test, x.adj, sep = "_", drop = TRUE)
@@ -83,11 +86,12 @@ otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter,
 ## -----------------------------------------------------------------------------
 data(Colon)
 
-count.tab = Colon$otu
+count.tab  = Colon$otu
 sample.tab = Colon$meta
-tax.tab = Colon$tax
+tax.tab    = Colon$tax
 
 dim(count.tab)
+colnames(count.tab)=1:ncol(count.tab)
 
 ## -----------------------------------------------------------------------------
 pNA = which(is.na(sample.tab$age))
@@ -95,7 +99,7 @@ if(length(pNA) > 0){
   count.tab = count.tab[-pNA, ]
   sample.tab = sample.tab[-pNA,]
 }
-# No missing values from gender
+# No samples have missing values for gender
 
 ## otu presence filtering
 p_otu = which(rowSums(t(count.tab) > 0) > 1)
@@ -119,44 +123,46 @@ x.test = cbind(CRC = Disease1, adenoma = Disease2)
 x.adj  = cbind(Age = Age, Gender = Gender)
 
 ## -----------------------------------------------------------------------------
-x = cbind(x.test, x.adj)
-Gamma = cbind(diag(ncol(x.test)), matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj)))
-est.CAFT = caft_estimate(otu.table = count.tab, x = x, filter.thresh = 0.05, regularize = TRUE, n.cores = 1L)
-print(est.CAFT)
-head(est.CAFT$beta.est)
+res.CAFT.Colon = caft(otu.table = count.tab,   x.test=x.test, x.adj=x.adj, filter.thresh = 0.10, fdr.nominal = 0.10)
+
+res.CAFT.Colon$Gamma
+res.CAFT.Colon$q.detected.otu
+
+## -----------------------------------------------------------------------------
+res.CAFT.Colon$p.otu[res.CAFT.Colon$q.detected.otu][1:10]
+
+## -----------------------------------------------------------------------------
+est.CAFT = caft_estimate(otu.table=count.tab, x=cbind(x.test, x.adj), filter.thresh=0.10, regularize=TRUE, n.cores=1L) 
+print(est.CAFT) 
+head(est.CAFT$beta.est) 
+
+## -----------------------------------------------------------------------------
+Gamma=cbind(diag(2), matrix(0,nrow=2, ncol=2) )
 Gamma
 
 ## -----------------------------------------------------------------------------
-test.CAFT = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.20, adjust.method="BH")
+res.CAFT.Colon$Gamma
+
+## -----------------------------------------------------------------------------
+test.CAFT = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.10, adjust.method="BH") 
 print(test.CAFT) 
 test.CAFT$betahat.median 
 test.CAFT$b.null 
 test.CAFT$q.detected.otu
+test.CAFT$p.otu[test.CAFT$q.detected.otu][1:10]
 
 ## -----------------------------------------------------------------------------
-test.CAFT.b0 = caft_test(est.CAFT, Gamma=Gamma, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
-print(test.CAFT.b0) 
-test.CAFT.b0$b.null 
-test.CAFT.b0$b.user.specified 
-test.CAFT.b0$q.detected.otu
-
-## -----------------------------------------------------------------------------
-res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
-res.CAFT$q.detected.otu
+Gamma=matrix( c(1,-1,0,0), nrow=1)
+test.CAFT.2 = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.20, adjust.method="BH") 
+print(test.CAFT.2) 
+test.CAFT.2$betahat.median 
+test.CAFT.2$b.null 
+test.CAFT.2$q.detected.otu
+length(test.CAFT.2$q.detected.otu)
+test.CAFT.2$p.otu[test.CAFT.2$q.detected.otu][1:10]
 
 ## ----eval=FALSE---------------------------------------------------------------
 # res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
-
-## -----------------------------------------------------------------------------
-x = cbind(x.test, x.adj)
-Gamma = matrix(c(1,-1,0,0), nrow=1, ncol=4)
-Gamma
-res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
-
-## -----------------------------------------------------------------------------
-Gamma = matrix(c(1,1,-1,0,0,0,0,0), nrow=2, ncol=4)
-Gamma
-res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
 
 ## ----eval=FALSE---------------------------------------------------------------
 # res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, boot.B=1000, boot.seed=1)

@@ -29,9 +29,18 @@ library(CAFT)
 
 ## Introduction
 
-Microbiome sequencing produces compositional data with prevalent zeros driven by limited sequencing depth and detection limits. Many differential-abundance methods are sensitive to these features and to heavy-tailed noise, which can inflate false positives or reduce hypothesis testing power.
+Microbiome sequencing produces compositional data with with many taxa having zero counts.  Many methods of analyzing microbiome data replace a zero count by a pseudocounts, which can produce poor results.
 
-The **CAFT** package develops a rank-based compositional analysis using an Accelerated Failure Time (AFT) modeling framework tailored for microbiome data. Zero read counts are treated as censored observations below a detection limit—mirroring censoring in survival analysis—so zeros are modeled rather than imputed pseudo-counts. By using rank statistics within the AFT model, CAFT is robust to strict model error distributional assumptions. This method supports taxon-level differential abundance testing for binary or multi-category phenotypes, with optional adjustment for continuous and categorical covariates.
+The **CAFT** package implements a rank-based compositional analysis using an Accelerated Failure Time (AFT) modeling framework tailored for microbiome data. Zero read counts are treated as censored observations below a detection limit given by the library size (total counts for a sample).  On the log-relative-abundance scale, the analysis becomes an implementation of the accelerated failure time model (AFT) in survival analysis.  CAFT uses a rank-based method to fit the AFT which does not make model error distributional assumptions. CAFT supports taxon-level differential abundance testing for binary or multi-category phenotypes, with optional adjustment for continuous and categorical covariates.
+
+CAFT fits a log-linear model to values of $-\text{log}(\widehat{p}_{ij})$ where $\widehat{p}_{ij}$ is the relative abundance of taxon $j$ in sample $i$.  When $\widehat{p}_{ij}=0$, it is considered to be left-censored at $\widehat{p}_{ij}=1/N_i$ where $N_i$ is the library size for the $i$th sample.  Defining  $\Delta_{ij}=I(\widehat{p}_{ij}>0)$ and defining the right-censored "failure times" $t_{ij}=-\text{log}(\widehat{p}_{ij})$ when $\Delta_{ij}=1$ and $t_{ij}=-\text{log}(1/N_i)=\text{log}(N_i)$ when $\Delta_{ij}=0$, CAFT fits the model
+$$-t_{ij} =\alpha_j + x_{i\cdot} \beta_j + \epsilon_{ij}$$
+to relative abundances of each taxon $j$, where $x_{i \cdot}$ is the $i$th row of the data matrix $x$.  This model corresponds to the `Accelerated Failure Time (AFT) Model' in survival analysis.  CAFT uses a rank-based estimation procedure to fit this model that makes no assumptions on the distribution of $\epsilon_{ij}$.  
+
+CAFT is designed to test hypotheses of the form
+$$\Gamma \beta = b$$ 
+in one of two ways.  The easiest way is to write $$x=(x_{test},x_{adj})$$ where $x_{test}$ has as its columns the variables we wish to test, while $x_{adj}$ has as its columns variables we wish to adjust for.  If $x_{test}$ has $d$ columns and $x_{adj}$ has $m$ columns then CAFT uses the "default choice" $\Gamma=(I_{d \times d},0_{m \times m})$ where $I$ is the identity matrix and $0$ is a matrix with all zeroes.  The "default choice" for $b$ is $b=\Gamma \widehat{\beta}^{(m)}$ where $\widehat{\beta}^{(m)}$ is the median (over taxa) of the $\widehat{\beta}_j$ values.  This gives a $d$-degree-of-freedom test of $\beta_1=b_1, \beta_2=b_2,\cdots,\beta_d=b_d$.  Alternatively, or for more complex tests, the user may specify their own values of $\Gamma$ and $b$ as inputs.
+
 
 ## Installation
 
@@ -86,14 +95,24 @@ caft(
   return.mr.resid = FALSE
 )
 ```
+The input parameters are:  **otu.table**, a matrix of read counts with samples as rows and taxa as columns; **x.test**, a data matrix with samples as rows and columns corresponding to the variables we want to test; **x.adj**, a data matrix with samples as rows and columns corresponding to the variables we want to control for. Inputs **x**, **Gamma** and **b** will be explained later.  CAFT filters out taxa that occur in proportionately fewer than **filter.thresh** samples (the default is 5%), and **fdr.nominal** is the desired nominal false-discovery rate.  **regularize** adds a small quadratic penalty to the objective function to avoid infinite parameter estimates when there is complete separation of the data; its contribution is an order of **nrow(otu.table)** smaller than the solution when it is not required and can therefore be ignored.
+
+The use of **CAFT** and the other input parameters for special cases are described below by example in the sections that follow, using two example data sets for illustration.
+
+
 
 # Example data sets illustration
 
-To illustrate the package usage, we used two filtered data sets, `URT` originally from [1] and obtained from R package **LOCOM** [2] and `Colon` from R package **curatedMetagenomicData** [3] (The **curatedMetagenomicData** package installation is required through **Bioconductor**. ). The processed microbiome data sets can be loaded directly from **CAFT** package.
+The **CAFT** package includes filtered data from two studies: `URT` (upper respiratory tract), originally from [1] and obtained from the R package **LOCOM** [2]; and `Colon` from the R package **curatedMetagenomicData** [3] (which can be installed using **Bioconductor**). These processed microbiome data sets can be loaded directly from **CAFT** package.  
+
+The URT data are a subset of data from a study of the microbiome of the upper respiratory tract [1], also used in the LOCOM package [2]. Following [2], we used only left oropharyngeal observations, and followed the same filtering steps as in the LOCOM paper [2].  We excluded three samples from individuals who had used antibiotics within three months prior to sample collection, and subset both the OTU count and taxonomy tables accordingly. The filtered OTU table have 57 rows (samples) and 856 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 89.35%.
+
+The `Colon` data in **CAFT** are described in the R package **curatedMetagenomicData** [3].  For our analyses here, we retain only adult participants, stool specimens, and samples with disease status labeled as colorectal cancer (CRC), adenoma, or healthy.
+
 
 ## Binary outcome phenotypes example
 
-The example URT microbiome data set, originates from a subset of the study (only left oropharyngeal observations) by [1]. We followed the same filtering steps as in LOCOM [2], excluded three samples from individuals who had used antibiotics within three months prior to sample collection, and subset both the OTU count and taxonomy tables accordingly. The filtered OTU table have 57 rows (samples) and 856 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 89.35%.
+We use the URT microbiome data set to illustrate the simplest use of **CAFT** for a single binary outcome.  We first load the data and apply the filters described previously.
 
 ```{r}
 data("URT")
@@ -112,20 +131,27 @@ cens.prop = colMeans(throat.otu.table.filter == 0, na.rm = T)
 mean(cens.prop)
 ```
 
-Setting `filter.thresh = 0.10` and `fdr.nominal = 0.10`, we conduct the taxa differential abundant analysis via: 
+Setting `filter.thresh = 0.10` and `fdr.nominal = 0.10`, we conduct the taxa differential abundant analysis by entering $x_{test}$ and $x_{adj}$ as separate arguments, using 
 
 ```{r}
 x.test = ifelse(throat.meta.filter$SmokingStatus == "NonSmoker", 0, 1)
 x.adj  = ifelse(throat.meta.filter$Sex == "Male", 0, 1)
-res.CAFT = caft(otu.table=throat.otu.table.filter, x.test=x.test, x.adj=x.adj, 
+res.CAFT.throat = caft(otu.table=throat.otu.table.filter, x.test=x.test, x.adj=x.adj, 
                 filter.thresh = 0.10, fdr.nominal = 0.10)
 ```
 
-With the default multiple comparison adjustment method of "BH", we can extract the significantly differential abundant taxa (only show first five below due to space limitation).
+With the default multiple comparison adjustment method of "BH", we can determine the significantly differential abundant taxa at the nominal FDR level as shown below.
 
 ```{r}
-res.CAFT$q.detected.otu
+res.CAFT.throat$q.detected.otu
 ```
+If we want to see the p- or q-values for these taxa, we can use the code (only first 5 shown)
+```{r}
+res.CAFT.throat$p.otu[res.CAFT.throat$q.detected.otu][1:5]
+```
+Note these are in the order that the taxa are given in the otu table.
+
+Note also that discoveries at different FDR thresholds can be obtained by simply selecting values of res.CAFT.throat$q.otu < FDR threshold.
 
 Setting the grouping label of each sample, we can obtain a ggplot2-based boxplot showing the relative abundance of a specified OTU using the function `otuboxplot()` in our **CAFT** package.
 
@@ -144,25 +170,26 @@ otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter,
 
 ## Multicategory outcome phenotypes example
 
-This `Colon` data were modified through package **curatedMetagenomicData** [3] on Bioconductor by subsetting samples. Specifically, we retained only adult participants, stool specimens, and samples with disease status labeled as colorectal cancer (CRC), adenoma, or healthy.
+We use the Colon data to illustrate multivariate covariates such as multigroup categorial data.  Here we also use the **phyloseq** package to extract the data: note that **phyloseq** is not required to run **CAFT**.
 
 - `age_category == "adult"`
 - `body_site == "stool"`
 - `disease %in% c("CRC", "healthy", "adenoma")`
 
-The filtered OTU table have 856 rows (samples) and 935 columns (taxa).
+The filtered OTU table have 856 rows (samples) and 935 columns (taxa).  For convenience of display in this vignette, we also set the names of each taxon to its column number.
 
 ```{r}
 data(Colon)
 
-count.tab = Colon$otu
+count.tab  = Colon$otu
 sample.tab = Colon$meta
-tax.tab = Colon$tax
+tax.tab    = Colon$tax
 
 dim(count.tab)
+colnames(count.tab)=1:ncol(count.tab)
 ```
 
-We also removed samples with missing age values (no missing gender) and then filtered the dataset to retain only taxa present in more than one sample (i.e., taxa with positive counts in at least two samples), subsetting both the count and taxonomy tables accordingly. After this additional filtering, the OTU table has 849 rows (samples) and 708 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 87.20%.
+We also removed samples with missing age values (no samples were missing gender) and then filtered the dataset to retain only taxa present in more than one sample (i.e., taxa with positive counts in at least two samples), subsetting both the count and taxonomy tables accordingly. After this additional filtering, the OTU table has 849 rows (samples) and 708 columns (taxa), and the average censoring rate (the mean proportion of zero counts across taxa) is 87.20%.
 
 
 ```{r}
@@ -171,7 +198,7 @@ if(length(pNA) > 0){
   count.tab = count.tab[-pNA, ]
   sample.tab = sample.tab[-pNA,]
 }
-# No missing values from gender
+# No samples have missing values for gender
 
 ## otu presence filtering
 p_otu = which(rowSums(t(count.tab) > 0) > 1)
@@ -184,7 +211,7 @@ cens.prop = colMeans(count.tab == 0, na.rm = T)
 mean(cens.prop)
 ```
 
-Then we extract the testing outcomes into `x.test`, setting "healthy" as the reference level and including two indicators for "CRC" and "adenoma". We also extract the adjusting variables "Age" and "Gender" into `x.adj`.
+Then we put the covariates we wish to test into the columns of `x.test`, setting "healthy" as the reference level and including two indicators for "CRC" and "adenoma". We also put the covariates we wish to adjust for (the variables "Age" and "Gender") into the columns of `x.adj`.
 
 ```{r}
 Disease1 = Disease2 = rep(0, NROW(sample.tab)) # healthy
@@ -197,56 +224,74 @@ Gender = as.numeric(factor(sample.tab$gender)) - 1
 x.test = cbind(CRC = Disease1, adenoma = Disease2)
 x.adj  = cbind(Age = Age, Gender = Gender)
 ```
+We can now run **CAFT** exactly as in the univariate example:
+```{r}
+res.CAFT.Colon = caft(otu.table = count.tab,   x.test=x.test, x.adj=x.adj, filter.thresh = 0.10, fdr.nominal = 0.10)
 
-### Separated estimation and testing workflow
+res.CAFT.Colon$Gamma
+res.CAFT.Colon$q.detected.otu
+```
+We see that 59 taxa were detected at the FDR=0.1 nominal level.  If we want to see the p- or q-values for these taxa, we can use the code (only first 10 shown)
+```{r}
+res.CAFT.Colon$p.otu[res.CAFT.Colon$q.detected.otu][1:10]
+```
+Again, note these are in the order the taxa appear in the otu table, not the size of the p-value.
 
-The CAFT analysis can also be carried out in separated steps. This is useful when the same unrestricted taxon-level estimates are reused for different hypotheses or for different choices of the null reference value $b$.
+### Separate estimation and testing workflow
 
-First, we estimate the unrestricted CAFT model for each taxon using `caft_estimate()`. This step computes the unrestricted taxon-level regression coefficient estimates, but does not perform the restricted score test or multiple-testing adjustment.
+The CAFT analysis can also be carried out in two separate steps.  The advantage of this approach is computational, and is explained after we describe the two steps.
+
+For the first step, we use **caft_estimate** to obtain the $\widehat{\beta}_j$s, the unrestricted estimates of parameters $\beta_j$. Because no hypothesis is specified, data should be entered using the full data matrix x.  If data are stored as `x_test' and `x_adj', then simply combine them using `x=cbind(x_test,x_adj)'.
+
 
 ```{r}
-x = cbind(x.test, x.adj)
-Gamma = cbind(diag(ncol(x.test)), matrix(0, nrow = ncol(x.test), ncol = ncol(x.adj)))
-est.CAFT = caft_estimate(otu.table = count.tab, x = x, filter.thresh = 0.05, regularize = TRUE, n.cores = 1L)
-print(est.CAFT)
-head(est.CAFT$beta.est)
+est.CAFT = caft_estimate(otu.table=count.tab, x=cbind(x.test, x.adj), filter.thresh=0.10, regularize=TRUE, n.cores=1L) 
+print(est.CAFT) 
+head(est.CAFT$beta.est) 
+```
+For the second step, we specify a hypothesis we want to test, either by specifying values of `x.test` and `x.adj` or by specifying `Gamma` and `b`.  Using these inputs, **caft_test** will calculate the
+restricted parameter estimates $\widehat{\beta}_j^{(r)}$ that satisfy the null hypothesis $\Gamma \widehat{\beta}_j^{(r)}=b$,  and conduct the hypothesis test to determine whether to accept or reject the hypothesis $\Gamma \beta=b$.  Since the unrestricted estimates are the same regardless of the null hypothesis we wish to test (as long as the variables in `x` are not changed), the multi-step analysis can be more efficient.  In the example below, we test the hypothesis $\Gamma \beta = b$.  Because we do not specify $b$, the default choice $b=\text{median}(\Gamma \widehat{\beta})$ is used, where $\widehat{\beta}$ are the unrestricted estimators obtained from **caft_estimate**.
+
+For example, we can test the significance of the two coefficients corresponding to disease category, controlling for age and gender using
+```{r}
+Gamma=cbind(diag(2), matrix(0,nrow=2, ncol=2) )
 Gamma
 ```
-
-In the separated workflow, users first construct the full design matrix `x` and then specify the hypothesis matrix `Gamma` explicitly. The function `caft_estimate()` performs only unrestricted taxon-level estimation and does not store a default hypothesis matrix.
-
-Next, we perform the restricted CAFT score test using `caft_test()`. By default, if `b=NULL`, CAFT estimates the null reference value from the median of the unrestricted taxon-level contrasts across taxa.
-
+which we can see is the same as 
 ```{r}
-test.CAFT = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.20, adjust.method="BH")
+res.CAFT.Colon$Gamma
+```
+from the previous section.  Then, we run **caft_test** to finish the analysis:
+```{r}
+test.CAFT = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.10, adjust.method="BH") 
 print(test.CAFT) 
 test.CAFT$betahat.median 
 test.CAFT$b.null 
 test.CAFT$q.detected.otu
+test.CAFT$p.otu[test.CAFT$q.detected.otu][1:10]
 ```
+These results should be identical to those obtained in the previous section. 
 
-The object `test.CAFT$betahat.median` gives the median-based compositional reference value, and `test.CAFT$b.null` gives the null value actually used in the restricted score test. When `b=NULL`, these two quantities are the same.
-
-Users may also specify the null reference value directly. For example, the following analysis tests the same two disease-status contrasts using the user-specified null value $b=(0,0)^'$.
+The advantage of the separate analysis path is that we can now test for a difference in the effect of the disease categories CRC and adenoma without having to run **caft_estimate** again (i.e., using the same unrestricted null estimates), by executing the following steps:
 
 ```{r}
-test.CAFT.b0 = caft_test(est.CAFT, Gamma=Gamma, b=c(0, 0), fdr.nominal=0.20, adjust.method="BH")
-print(test.CAFT.b0) 
-test.CAFT.b0$b.null 
-test.CAFT.b0$b.user.specified 
-test.CAFT.b0$q.detected.otu
+Gamma=matrix( c(1,-1,0,0), nrow=1)
+test.CAFT.2 = caft_test(est.CAFT, Gamma=Gamma, fdr.nominal=0.20, adjust.method="BH") 
+print(test.CAFT.2) 
+test.CAFT.2$betahat.median 
+test.CAFT.2$b.null 
+test.CAFT.2$q.detected.otu
+length(test.CAFT.2$q.detected.otu)
+test.CAFT.2$p.otu[test.CAFT.2$q.detected.otu][1:10]
 ```
+We see that there are 39 taxa at which there is evidence that $\beta_1=\beta_{\text{CRC}}$ is different from $\beta_2=\beta_{\text{adenoma}}$.
 
-This allows sensitivity analysis with respect to the choice of the null reference value `b`. In particular, the unrestricted estimates from `caft_estimate()` are not recomputed when testing a different value of `b`.
+Note that, if the `x.test` and `x.adj` input format is used in `caft_test`, the order of the variables must be the same as was used when running `caft_estimate`.  
 
-The same workflow can be run through the wrapper function `caft()`:
+The object `test.CAFT$betahat.median` gives the value of $\text{median}(\Gamma \widehat{\beta})$, default value of $b$, the median-based compositional reference value. The user may specify a different value of $b$ (e.g., for sensitivity analyses or to choose a different reference, such as the mode of $\Gamma \widehat{\beta}$ rather than the median), which is returned in `test.CAFT$b.null`.
 
-```{r}
-res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj)
-res.CAFT$q.detected.otu
-```
 
-Thus, `caft()` provides the standard user-facing workflow, while `caft_estimate()` and `caft_test()` expose the estimation and testing steps separately.
+
 
 ### Parallel computation
 
@@ -256,32 +301,10 @@ We can also implement multi-threads parallel computing to speed up the computati
 res.CAFT = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, n.cores=2)
 ```
 
-If `x.test` and `x.adj` are set to NULL, we specified all the covariates together in `x`, we can also set-up appropriate contrast matrix for 'Gamma' to test specified linear hypothesis.
 
-If the relative abundance for taxa $j$ in sample $i$ $\widehat{\pi}_{ij}>0$, we define $\tau_{ij}=-\log( \widehat{\pi}_{ij} )$. If $\widehat{\pi}_{ij} = 0$ that is associated with zero count cell, $\tau_{ij}= \log(N_i)$ with censoring. The corresponding AFT model can be written as
-$$\tau_{ij}=\gamma_{j}  - x_{i,CRC}\beta_{j,CRC} - x_{i,adenoma}\beta_{j,adenoma} - x_{i,Age}\beta_{j,Age} - x_{i,Gender}\beta_{j,Gender}  + \alpha_{i} + \epsilon_{ij} ~,$$
-where $x_{i,\cdot}$'s are the covariates from above and $\beta_{j,\cdot}$'s are the corresponding regression parameters.  The term $\alpha_{i}$ plays the role of a normalization constant, $\gamma_{j}$ is a taxon-specific intercept, and $\epsilon_{ij}$ is residual error. Other details can be found in the manuscript.
+### Bootstrap implementation of CAFT
 
-- One degree of freedom test on $H_{0}: \beta_{j,CRC}=\beta_{j,adenoma}$, which is saying that the taxon $j$ is equally differential abundant across the CRC and the adenoma groups.
-
-```{r}
-x = cbind(x.test, x.adj)
-Gamma = matrix(c(1,-1,0,0), nrow=1, ncol=4)
-Gamma
-res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
-```
-
-- A two degree freedom test on $H_{0}: \beta_{j,CRC}=\beta_{j,adenoma}=0$, which is saying that the taxon $j$ is equally differential abundant across all three outcomes.
-
-```{r}
-Gamma = matrix(c(1,1,-1,0,0,0,0,0), nrow=2, ncol=4)
-Gamma
-res.CAFT = caft(otu.table=count.tab, x=x, Gamma=Gamma)
-```
-
-### Bootstrap calibration CAFT
-
-CAFT also provides bootstrap calibration of taxon-level p-values. Bootstrap calibration can be requested by setting `boot.B` >= 2. In practice, a larger number of bootstrap replicates, such as `boot.B = 1000`, is recommended. 
+CAFT also provides bootstrap version to calculate taxon-level p-values when either the number of samples or the number of taxa is small. The bootstrap calculation can be requested by setting `boot.B` >= 2. In practice, a larger number of bootstrap replicates, such as `boot.B = 1000`, is recommended, as the smallest non-zero $p$-value that can be obtained is 1/(boot.B+1).  Note that the bootstrap version of CAFT can be very slow.
 
 ```{r, eval=FALSE}
 res.CAFT.boot = caft(otu.table=count.tab, x.test=x.test, x.adj=x.adj, boot.B=1000, boot.seed=1)

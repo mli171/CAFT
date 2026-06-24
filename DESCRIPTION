@@ -1,7 +1,7 @@
 Package: CAFT
 Type: Package
 Title: Rank-Based Compositional Analysis using Log-Linear Models for Microbiome Data with Zero Cells
-Version: 0.1.0
+Version: 0.1.1
 Date: 2026-06-09
 Authors@R: c(person("Glen A.", "Satten", email="gsatten@emory.edu", role=c("aut", "ctb", "cph")),
              person("Mo", "Li", email="mo.li@louisiana.edu", role=c("aut", "ctb", "cre", "cph")),

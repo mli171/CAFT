@@ -170,7 +170,7 @@ otuboxplot(plot.otu=boxplot.otu, count.data=throat.otu.table.filter,
 
 ## Multicategory outcome phenotypes example
 
-We use the Colon data to illustrate multivariate covariates such as multigroup categorial data.  Here we also use the **phyloseq** package to extract the data: note that **phyloseq** is not required to run **CAFT**.
+We use the Colon data to illustrate multivariate covariates such as multigroup categorial data.  The data can also be extracted from the **phyloseq** package: note that **phyloseq** is not required to run **CAFT**.
 
 - `age_category == "adult"`
 - `body_site == "stool"`
